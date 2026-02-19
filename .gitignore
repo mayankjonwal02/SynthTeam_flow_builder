@@ -1,0 +1,69 @@
+# ── OS ────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Environment variables ─────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Python / Backend ──────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+env/
+*.whl
+
+# ── Node / Frontend ───────────────────────────────────────────────
+node_modules/
+.next/
+out/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+*.tsbuildinfo
+next-env.d.ts
+.vercel
+
+# ── IDE ───────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.cursor/
+
+# ── Logs ──────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+celery*.log
+
+# ── Testing / Coverage ───────────────────────────────────────────
+coverage/
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ── Docker ────────────────────────────────────────────────────────
+# Ignore nothing Docker-specific (compose files should be committed),
+# but ignore any local override files.
+docker-compose.override.yml
+
+# ── Misc ──────────────────────────────────────────────────────────
+*.pem
+*.key
+*.cert
