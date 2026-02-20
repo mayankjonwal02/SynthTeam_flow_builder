@@ -8,13 +8,13 @@ import NodeWrapper from "./NodeWrapper";
 
 const METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH"] as const;
 const FIELD_TYPES = [
+  "any",
   "string", "int", "float", "bool",
   "list", "dict", "json",
   "base64", "bytes",
   "image", "audio", "video", "file",
   "date", "datetime",
   "url", "email", "uuid",
-  "any",
 ] as const;
 
 const METHOD_COLORS: Record<string, string> = {
@@ -43,7 +43,7 @@ export default function HttpEntryNode({ id, data, selected }: any) {
     return Object.entries(schema).map(([k, v]) => ({ name: k, type: v as string }));
   });
   const [newReqName, setNewReqName] = useState("");
-  const [newReqType, setNewReqType] = useState("string");
+  const [newReqType, setNewReqType] = useState("any");
 
   // Response schema fields
   const [resFields, setResFields] = useState<SchemaField[]>(() => {
@@ -51,7 +51,7 @@ export default function HttpEntryNode({ id, data, selected }: any) {
     return Object.entries(schema).map(([k, v]) => ({ name: k, type: v as string }));
   });
   const [newResName, setNewResName] = useState("");
-  const [newResType, setNewResType] = useState("string");
+  const [newResType, setNewResType] = useState("any");
 
   // ── immutable state update via setNodes ──
   const syncConfig = useCallback(

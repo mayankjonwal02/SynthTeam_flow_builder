@@ -5,15 +5,27 @@ import { useCallback, useState } from "react";
 import { FileSearch, Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import NodeWrapper from "./NodeWrapper";
+import FieldModeInput, { FieldMode } from "./FieldModeInput";
+
+interface HeaderEntry {
+  name: string;
+  mode: FieldMode;
+  value: string;
+}
 
 export default function HeaderExtractorNode({ id, data, selected }: any) {
   const { setNodes } = useReactFlow();
   const [nodeName, setNodeName] = useState(data.label || "Header Extractor");
-  const [headers, setHeaders] = useState<string[]>(data.config?.headers || []);
+  const [headers, setHeaders] = useState<HeaderEntry[]>(() => {
+    if (data.config?.header_mappings) return data.config.header_mappings;
+    const legacy = data.config?.headers || [];
+    return legacy.map((h: string) => ({ name: h, mode: "static" as FieldMode, value: h }));
+  });
   const [newHeader, setNewHeader] = useState("");
 
   const syncConfig = useCallback(
-    (h: string[], lbl?: string) => {
+    (h: HeaderEntry[], lbl?: string) => {
+      const legacyHeaders = h.map((e) => e.value || e.name);
       setNodes((nds) =>
         nds.map((node) =>
           node.id === id
@@ -23,7 +35,7 @@ export default function HeaderExtractorNode({ id, data, selected }: any) {
                   ...node.data,
                   label: lbl ?? node.data.label,
                   component: "header_extractor",
-                  config: { ...node.data.config, headers: h },
+                  config: { ...node.data.config, headers: legacyHeaders, header_mappings: h },
                 },
               }
             : node
@@ -38,7 +50,7 @@ export default function HeaderExtractorNode({ id, data, selected }: any) {
       setNodes((nds) =>
         nds.map((node) =>
           node.id === id
-            ? { ...node, data: { ...node.data, component: "header_extractor", config: { ...node.data.config, headers } } }
+            ? { ...node, data: { ...node.data, component: "header_extractor", config: { ...node.data.config, headers: headers.map(e => e.value || e.name), header_mappings: headers } } }
             : node
         )
       );
@@ -46,8 +58,8 @@ export default function HeaderExtractorNode({ id, data, selected }: any) {
   }
 
   const addHeader = () => {
-    if (!newHeader.trim() || headers.includes(newHeader.trim().toLowerCase())) return;
-    const updated = [...headers, newHeader.trim().toLowerCase()];
+    if (!newHeader.trim()) return;
+    const updated = [...headers, { name: newHeader.trim().toLowerCase(), mode: "static" as FieldMode, value: newHeader.trim().toLowerCase() }];
     setHeaders(updated);
     syncConfig(updated);
     setNewHeader("");
@@ -59,14 +71,17 @@ export default function HeaderExtractorNode({ id, data, selected }: any) {
     syncConfig(updated);
   };
 
-  const handleNameChange = (n: string) => {
-    setNodeName(n);
-    syncConfig(headers, n);
+  const updateHeader = (idx: number, patch: Partial<HeaderEntry>) => {
+    const updated = headers.map((h, i) => (i === idx ? { ...h, ...patch } : h));
+    setHeaders(updated);
+    syncConfig(updated);
   };
+
+  const handleNameChange = (n: string) => { setNodeName(n); syncConfig(headers, n); };
 
   return (
     <NodeWrapper id={id} name={nodeName} onNameChange={handleNameChange} accentColor="slate">
-      <div className={`bg-[#1a1a2e] border rounded-xl shadow-2xl shadow-slate-500/5 w-72 overflow-hidden ${selected ? "border-slate-400 ring-1 ring-slate-400/30" : "border-slate-500/30"}`}>
+      <div className={`bg-[#1a1a2e] border rounded-xl shadow-2xl shadow-slate-500/5 w-80 overflow-hidden ${selected ? "border-slate-400 ring-1 ring-slate-400/30" : "border-slate-500/30"}`}>
         <div className="flex items-center gap-2 px-4 py-3 bg-slate-500/10 border-b border-slate-500/20">
           <FileSearch className="w-4 h-4 text-slate-400" />
           <span className="text-sm font-semibold text-slate-300">{nodeName}</span>
@@ -77,11 +92,20 @@ export default function HeaderExtractorNode({ id, data, selected }: any) {
         <div className="p-4 space-y-2">
           <div className="text-[10px] uppercase tracking-widest text-white/30 font-semibold">Headers to Extract</div>
           {headers.map((h, i) => (
-            <div key={i} className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-1.5 group">
-              <span className="text-xs text-white/80 flex-1 font-mono">{h}</span>
-              <button onClick={() => removeHeader(i)} className="opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-300">
-                <Trash2 className="w-3 h-3" />
-              </button>
+            <div key={i} className="bg-white/[0.03] border border-white/[0.06] rounded-lg p-2 space-y-1.5 group">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-white/70 font-mono font-medium flex-1">{h.name}</span>
+                <button onClick={() => removeHeader(i)} className="opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-300">
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
+              <FieldModeInput
+                mode={h.mode}
+                value={h.value}
+                onModeChange={(mode) => updateHeader(i, { mode, value: "" })}
+                onValueChange={(value) => updateHeader(i, { value })}
+                placeholder={{ static: "x-custom-header", input: "input.headerName", expression: "input.config.header" }}
+              />
             </div>
           ))}
           <div className="flex gap-1.5">

@@ -5,16 +5,22 @@ import { useCallback, useState } from "react";
 import { Route, Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import NodeWrapper from "./NodeWrapper";
+import FieldModeInput, { FieldMode } from "./FieldModeInput";
+
+interface ModeValue { mode: FieldMode; value: string; }
 
 export default function SwitchCaseNode({ id, data, selected }: any) {
   const { setNodes } = useReactFlow();
   const [nodeName, setNodeName] = useState(data.label || "Switch / Case");
-  const [field, setField] = useState<string>(data.config?.field || "");
+  const [field, setField] = useState<ModeValue>({
+    mode: data.config?.field_mode || "expression",
+    value: data.config?.field || "",
+  });
   const [cases, setCases] = useState<string[]>(data.config?.cases || []);
   const [newCase, setNewCase] = useState("");
 
   const syncConfig = useCallback(
-    (f: string, c: string[], lbl?: string) => {
+    (f: ModeValue, c: string[], lbl?: string) => {
       setNodes((nds) =>
         nds.map((node) =>
           node.id === id
@@ -24,7 +30,7 @@ export default function SwitchCaseNode({ id, data, selected }: any) {
                   ...node.data,
                   label: lbl ?? node.data.label,
                   component: "switch_case",
-                  config: { ...node.data.config, field: f, cases: c },
+                  config: { ...node.data.config, field: f.value, field_mode: f.mode, cases: c },
                 },
               }
             : node
@@ -39,14 +45,12 @@ export default function SwitchCaseNode({ id, data, selected }: any) {
       setNodes((nds) =>
         nds.map((node) =>
           node.id === id
-            ? { ...node, data: { ...node.data, component: "switch_case", config: { ...node.data.config, field, cases } } }
+            ? { ...node, data: { ...node.data, component: "switch_case", config: { ...node.data.config, field: field.value, field_mode: field.mode, cases } } }
             : node
         )
       );
     });
   }
-
-  const handleFieldChange = (v: string) => { setField(v); syncConfig(v, cases); };
 
   const addCase = () => {
     if (!newCase.trim() || cases.includes(newCase.trim())) return;
@@ -66,7 +70,7 @@ export default function SwitchCaseNode({ id, data, selected }: any) {
 
   return (
     <NodeWrapper id={id} name={nodeName} onNameChange={handleNameChange} accentColor="violet">
-      <div className={`bg-[#1a1a2e] border rounded-xl shadow-2xl shadow-violet-500/5 w-72 overflow-hidden ${selected ? "border-violet-400 ring-1 ring-violet-400/30" : "border-violet-500/30"}`}>
+      <div className={`bg-[#1a1a2e] border rounded-xl shadow-2xl shadow-violet-500/5 w-80 overflow-hidden ${selected ? "border-violet-400 ring-1 ring-violet-400/30" : "border-violet-500/30"}`}>
         <div className="flex items-center gap-2 px-4 py-3 bg-violet-500/10 border-b border-violet-500/20">
           <Route className="w-4 h-4 text-violet-400" />
           <span className="text-sm font-semibold text-violet-300">{nodeName}</span>
@@ -77,11 +81,12 @@ export default function SwitchCaseNode({ id, data, selected }: any) {
         <div className="p-4 space-y-3">
           <div>
             <div className="text-[10px] uppercase tracking-widest text-white/30 font-semibold mb-1.5">Switch Field</div>
-            <input
-              value={field}
-              onChange={(e) => handleFieldChange(e.target.value)}
-              placeholder="e.g. status"
-              className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-violet-500/50 font-mono"
+            <FieldModeInput
+              mode={field.mode}
+              value={field.value}
+              onModeChange={(mode) => { const u = { mode, value: "" }; setField(u); syncConfig(u, cases); }}
+              onValueChange={(value) => { const u = { ...field, value }; setField(u); syncConfig(u, cases); }}
+              placeholder={{ static: "status", input: "input.status", expression: "input.data.status" }}
             />
           </div>
           <div className="space-y-2">
@@ -109,7 +114,7 @@ export default function SwitchCaseNode({ id, data, selected }: any) {
           </div>
           <div className="bg-white/5 rounded-lg px-3 py-2">
             <p className="text-[10px] text-white/40 leading-relaxed">
-              Connect edges with <span className="text-violet-400 font-mono">condition: "value"</span> matching each case.
+              Connect edges with <span className="text-violet-400 font-mono">condition: &quot;value&quot;</span> matching each case.
             </p>
           </div>
         </div>

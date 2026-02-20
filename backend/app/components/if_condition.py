@@ -3,9 +3,11 @@ If-Condition Component — evaluates a boolean condition on upstream data.
 
 Config:
     {
-        "field":    "age",
-        "operator": ">",
-        "value":    18
+        "field":      "age",
+        "field_mode": "expression",   # static | input | expression
+        "operator":   ">",
+        "value":      18,
+        "value_mode": "static"        # static | input | expression
     }
 
 Returns:
@@ -21,6 +23,7 @@ through if the condition result matches the edge's expected value.
 from typing import Any, Dict
 from app.components.base import BaseComponent
 from app.components.component_registry import register_component
+from app.db_connectors.interpolation import resolve_field_mapping
 
 
 _OPERATORS = {
@@ -73,14 +76,20 @@ class IfConditionComponent(BaseComponent):
         for output in inputs.values():
             if isinstance(output, dict):
                 merged.update(output)
-            else:
-                pass
 
-        field_name = config.get("field", "")
-        operator   = config.get("operator", "==")
-        compare_val = config.get("value")
+        field_mapping = {
+            "mode": config.get("field_mode", "expression"),
+            "value": config.get("field", ""),
+        }
+        value_mapping = {
+            "mode": config.get("value_mode", "static"),
+            "value": config.get("value", ""),
+        }
 
-        field_val = merged.get(field_name)
+        field_val = resolve_field_mapping(field_mapping, merged)
+        compare_val = resolve_field_mapping(value_mapping, merged)
+        operator = config.get("operator", "==")
+
         result = _evaluate(field_val, operator, compare_val)
 
         return {"__condition__": result, "data": merged}

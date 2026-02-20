@@ -6,6 +6,7 @@ from app.api.routes import router
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.projects import router as project_router
 from app.api.files import router as file_router
+from app.api.db_connections import router as db_connections_router
 from app.models.models import Base
 from app.db.session import engine
 
@@ -43,6 +44,10 @@ async def startup():
     from app.components.component_registry import list_components
     logger.info(f"Registered components: {list_components()}")
 
+    import app.db_connectors  # noqa: F401  — triggers connector registration
+    from app.db_connectors.connector_registry import list_connectors
+    logger.info(f"Registered DB connectors: {list_connectors()}")
+
     try:
         import redis.asyncio as aioredis
         from app.core.config import settings
@@ -73,9 +78,16 @@ async def shutdown():
     except Exception:
         pass
 
+    try:
+        from app.db_connectors.pool_manager import shutdown_all_pools
+        await shutdown_all_pools()
+    except Exception:
+        pass
+
 
 application.include_router(project_router)
 application.include_router(file_router)
+application.include_router(db_connections_router)
 application.include_router(router)
 
 # uvicorn entrypoint alias: `uvicorn app.main:app`

@@ -5,17 +5,23 @@ import { useCallback, useState } from "react";
 import { ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import NodeWrapper from "./NodeWrapper";
+import FieldModeInput, { FieldMode } from "./FieldModeInput";
 
 const AUTH_TYPES = ["api_key"] as const;
+
+interface ModeValue { mode: FieldMode; value: string; }
 
 export default function AuthNodeNode({ id, data, selected }: any) {
   const { setNodes } = useReactFlow();
   const [nodeName, setNodeName] = useState(data.label || "Auth Gate");
   const [authType, setAuthType] = useState<string>(data.config?.type || "api_key");
-  const [headerName, setHeaderName] = useState<string>(data.config?.header_name || "x-api-key");
+  const [headerName, setHeaderName] = useState<ModeValue>({
+    mode: data.config?.header_name_mode || "static",
+    value: data.config?.header_name || "x-api-key",
+  });
 
   const syncConfig = useCallback(
-    (t: string, h: string, lbl?: string) => {
+    (t: string, h: ModeValue, lbl?: string) => {
       setNodes((nds) =>
         nds.map((node) =>
           node.id === id
@@ -25,7 +31,7 @@ export default function AuthNodeNode({ id, data, selected }: any) {
                   ...node.data,
                   label: lbl ?? node.data.label,
                   component: "auth_node",
-                  config: { ...node.data.config, type: t, header_name: h },
+                  config: { ...node.data.config, type: t, header_name: h.value, header_name_mode: h.mode },
                 },
               }
             : node
@@ -40,7 +46,7 @@ export default function AuthNodeNode({ id, data, selected }: any) {
       setNodes((nds) =>
         nds.map((node) =>
           node.id === id
-            ? { ...node, data: { ...node.data, component: "auth_node", config: { ...node.data.config, type: authType, header_name: headerName } } }
+            ? { ...node, data: { ...node.data, component: "auth_node", config: { ...node.data.config, type: authType, header_name: headerName.value, header_name_mode: headerName.mode } } }
             : node
         )
       );
@@ -48,12 +54,11 @@ export default function AuthNodeNode({ id, data, selected }: any) {
   }
 
   const handleTypeChange = (v: string) => { setAuthType(v); syncConfig(v, headerName); };
-  const handleHeaderChange = (v: string) => { setHeaderName(v); syncConfig(authType, v); };
   const handleNameChange = (n: string) => { setNodeName(n); syncConfig(authType, headerName, n); };
 
   return (
     <NodeWrapper id={id} name={nodeName} onNameChange={handleNameChange} accentColor="red">
-      <div className={`bg-[#1a1a2e] border rounded-xl shadow-2xl shadow-red-500/5 w-72 overflow-hidden ${selected ? "border-red-400 ring-1 ring-red-400/30" : "border-red-500/30"}`}>
+      <div className={`bg-[#1a1a2e] border rounded-xl shadow-2xl shadow-red-500/5 w-80 overflow-hidden ${selected ? "border-red-400 ring-1 ring-red-400/30" : "border-red-500/30"}`}>
         <div className="flex items-center gap-2 px-4 py-3 bg-red-500/10 border-b border-red-500/20">
           <ShieldCheck className="w-4 h-4 text-red-400" />
           <span className="text-sm font-semibold text-red-300">{nodeName}</span>
@@ -76,11 +81,12 @@ export default function AuthNodeNode({ id, data, selected }: any) {
           </div>
           <div>
             <div className="text-[10px] uppercase tracking-widest text-white/30 font-semibold mb-1.5">Header Name</div>
-            <input
-              value={headerName}
-              onChange={(e) => handleHeaderChange(e.target.value)}
-              placeholder="x-api-key"
-              className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-red-500/50 font-mono"
+            <FieldModeInput
+              mode={headerName.mode}
+              value={headerName.value}
+              onModeChange={(mode) => { const u = { mode, value: "" }; setHeaderName(u); syncConfig(authType, u); }}
+              onValueChange={(value) => { const u = { ...headerName, value }; setHeaderName(u); syncConfig(authType, u); }}
+              placeholder={{ static: "x-api-key", input: "input.headerKey", expression: "input.config.authHeader" }}
             />
           </div>
           <div className="bg-white/5 rounded-lg px-3 py-2">
