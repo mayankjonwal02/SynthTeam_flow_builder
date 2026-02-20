@@ -46,6 +46,14 @@ import {
   ShieldCheck,
   Code2,
   ScrollText,
+  Search,
+  DatabaseZap,
+  PenLine,
+  Trash,
+  TerminalSquare,
+  PlayCircle,
+  CheckCircle,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ExecutionDrawer from "@/components/ExecutionDrawer";
@@ -113,6 +121,62 @@ const PALETTE_SECTIONS: PaletteSection[] = [
       { type: "auth_node",        label: "Auth Gate",       description: "Validate API keys",            icon: ShieldCheck, accent: "bg-red-500/20 text-red-400 border-red-500/30" },
     ],
   },
+  {
+    title: "PostgreSQL",
+    items: [
+      { type: "pg_find",          label: "PG Find",         description: "Query Postgres rows",          icon: Search,        accent: "bg-blue-600/20 text-blue-400 border-blue-600/30" },
+      { type: "pg_insert",        label: "PG Insert",       description: "Insert into Postgres",         icon: DatabaseZap,   accent: "bg-blue-600/20 text-blue-400 border-blue-600/30" },
+      { type: "pg_update",        label: "PG Update",       description: "Update Postgres rows",         icon: PenLine,       accent: "bg-blue-600/20 text-blue-400 border-blue-600/30" },
+      { type: "pg_delete",        label: "PG Delete",       description: "Delete Postgres rows",         icon: Trash,         accent: "bg-blue-600/20 text-blue-400 border-blue-600/30" },
+      { type: "pg_raw_query",     label: "PG Query",        description: "Raw SQL on Postgres",          icon: TerminalSquare, accent: "bg-blue-600/20 text-blue-400 border-blue-600/30" },
+      { type: "pg_txn_start",     label: "PG Txn Start",    description: "Begin PG transaction",         icon: PlayCircle,    accent: "bg-blue-600/20 text-blue-400 border-blue-600/30" },
+      { type: "pg_txn_commit",    label: "PG Txn Commit",   description: "Commit PG transaction",        icon: CheckCircle,   accent: "bg-blue-600/20 text-blue-400 border-blue-600/30" },
+      { type: "pg_txn_rollback",  label: "PG Txn Rollback", description: "Rollback PG transaction",      icon: RotateCcw,     accent: "bg-blue-600/20 text-blue-400 border-blue-600/30" },
+    ],
+  },
+  {
+    title: "MySQL",
+    items: [
+      { type: "mysql_find",          label: "MySQL Find",         description: "Query MySQL rows",          icon: Search,        accent: "bg-orange-600/20 text-orange-400 border-orange-600/30" },
+      { type: "mysql_insert",        label: "MySQL Insert",       description: "Insert into MySQL",         icon: DatabaseZap,   accent: "bg-orange-600/20 text-orange-400 border-orange-600/30" },
+      { type: "mysql_update",        label: "MySQL Update",       description: "Update MySQL rows",         icon: PenLine,       accent: "bg-orange-600/20 text-orange-400 border-orange-600/30" },
+      { type: "mysql_delete",        label: "MySQL Delete",       description: "Delete MySQL rows",         icon: Trash,         accent: "bg-orange-600/20 text-orange-400 border-orange-600/30" },
+      { type: "mysql_raw_query",     label: "MySQL Query",        description: "Raw SQL on MySQL",          icon: TerminalSquare, accent: "bg-orange-600/20 text-orange-400 border-orange-600/30" },
+      { type: "mysql_txn_start",     label: "MySQL Txn Start",    description: "Begin MySQL transaction",   icon: PlayCircle,    accent: "bg-orange-600/20 text-orange-400 border-orange-600/30" },
+      { type: "mysql_txn_commit",    label: "MySQL Txn Commit",   description: "Commit MySQL transaction",  icon: CheckCircle,   accent: "bg-orange-600/20 text-orange-400 border-orange-600/30" },
+      { type: "mysql_txn_rollback",  label: "MySQL Txn Rollback", description: "Rollback MySQL transaction", icon: RotateCcw,    accent: "bg-orange-600/20 text-orange-400 border-orange-600/30" },
+    ],
+  },
+  {
+    title: "MongoDB",
+    items: [
+      { type: "mongo_find",       label: "Mongo Find",      description: "Find documents",               icon: Search,        accent: "bg-green-600/20 text-green-400 border-green-600/30" },
+      { type: "mongo_insert",     label: "Mongo Insert",    description: "Insert document",              icon: DatabaseZap,   accent: "bg-green-600/20 text-green-400 border-green-600/30" },
+      { type: "mongo_update",     label: "Mongo Update",    description: "Update documents",             icon: PenLine,       accent: "bg-green-600/20 text-green-400 border-green-600/30" },
+      { type: "mongo_delete",     label: "Mongo Delete",    description: "Delete documents",             icon: Trash,         accent: "bg-green-600/20 text-green-400 border-green-600/30" },
+      { type: "mongo_aggregate",  label: "Mongo Aggregate", description: "Aggregation pipeline",         icon: TerminalSquare, accent: "bg-green-600/20 text-green-400 border-green-600/30" },
+    ],
+  },
+  {
+    title: "SQLite",
+    items: [
+      { type: "sqlite_find",      label: "SQLite Find",     description: "Query SQLite rows",            icon: Search,        accent: "bg-amber-600/20 text-amber-400 border-amber-600/30" },
+      { type: "sqlite_insert",    label: "SQLite Insert",   description: "Insert into SQLite",           icon: DatabaseZap,   accent: "bg-amber-600/20 text-amber-400 border-amber-600/30" },
+      { type: "sqlite_update",    label: "SQLite Update",   description: "Update SQLite rows",           icon: PenLine,       accent: "bg-amber-600/20 text-amber-400 border-amber-600/30" },
+      { type: "sqlite_delete",    label: "SQLite Delete",   description: "Delete SQLite rows",           icon: Trash,         accent: "bg-amber-600/20 text-amber-400 border-amber-600/30" },
+      { type: "sqlite_raw_query", label: "SQLite Query",    description: "Raw SQL on SQLite",            icon: TerminalSquare, accent: "bg-amber-600/20 text-amber-400 border-amber-600/30" },
+    ],
+  },
+  {
+    title: "Supabase",
+    items: [
+      { type: "supa_find",        label: "Supa Find",       description: "Query Supabase rows",          icon: Search,        accent: "bg-emerald-600/20 text-emerald-400 border-emerald-600/30" },
+      { type: "supa_insert",      label: "Supa Insert",     description: "Insert into Supabase",         icon: DatabaseZap,   accent: "bg-emerald-600/20 text-emerald-400 border-emerald-600/30" },
+      { type: "supa_update",      label: "Supa Update",     description: "Update Supabase rows",         icon: PenLine,       accent: "bg-emerald-600/20 text-emerald-400 border-emerald-600/30" },
+      { type: "supa_delete",      label: "Supa Delete",     description: "Delete Supabase rows",         icon: Trash,         accent: "bg-emerald-600/20 text-emerald-400 border-emerald-600/30" },
+      { type: "supa_raw_query",   label: "Supa Query",      description: "Raw SQL on Supabase",          icon: TerminalSquare, accent: "bg-emerald-600/20 text-emerald-400 border-emerald-600/30" },
+    ],
+  },
 ];
 
 // ── MiniMap color mapping ───────────────────────────────────────────
@@ -131,7 +195,17 @@ const MINIMAP_COLORS: Record<string, string> = {
   response_builder: "#10b981",
   header_extractor: "#64748b",
   auth_node:        "#ef4444",
-  python_function:  "#d946ef",
+  python_function:    "#d946ef",
+  pg_find:            "#2563eb", pg_insert: "#2563eb", pg_update: "#2563eb", pg_delete: "#2563eb",
+  pg_raw_query:       "#2563eb", pg_txn_start: "#2563eb", pg_txn_commit: "#2563eb", pg_txn_rollback: "#2563eb",
+  mysql_find:         "#ea580c", mysql_insert: "#ea580c", mysql_update: "#ea580c", mysql_delete: "#ea580c",
+  mysql_raw_query:    "#ea580c", mysql_txn_start: "#ea580c", mysql_txn_commit: "#ea580c", mysql_txn_rollback: "#ea580c",
+  mongo_find:         "#16a34a", mongo_insert: "#16a34a", mongo_update: "#16a34a", mongo_delete: "#16a34a",
+  mongo_aggregate:    "#16a34a",
+  sqlite_find:        "#d97706", sqlite_insert: "#d97706", sqlite_update: "#d97706", sqlite_delete: "#d97706",
+  sqlite_raw_query:   "#d97706",
+  supa_find:          "#059669", supa_insert: "#059669", supa_update: "#059669", supa_delete: "#059669",
+  supa_raw_query:     "#059669",
 };
 
 // ── inner component (needs ReactFlowProvider above it) ─────────────
@@ -295,21 +369,21 @@ function FlowEditor({ fileId }: { fileId: string }) {
       case "http_entry":
         return { component: "http_entry", config: { is_entry: true, method: "POST", path: "/api/endpoint", request_schema: {}, response_schema: {} } };
       case "processor":
-        return { component: "echo_processor", config: { label: "Echo Processor" } };
+        return { component: "echo_processor", config: { label: "Echo Processor", field_mappings: [] } };
       case "response_builder":
         return { component: "response_builder", config: { is_response: true, response_schema: {}, field_mappings: [] } };
       case "if_condition":
-        return { component: "if_condition", config: { field: "", operator: "==", value: "" } };
+        return { component: "if_condition", config: { field: "", field_mode: "expression", operator: "==", value: "", value_mode: "static" } };
       case "switch_case":
-        return { component: "switch_case", config: { field: "", cases: [] } };
+        return { component: "switch_case", config: { field: "", field_mode: "expression", cases: [] } };
       case "loop_foreach":
-        return { component: "loop_foreach", config: { array_field: "items" } };
+        return { component: "loop_foreach", config: { array_field: "items", array_field_mode: "expression" } };
       case "parallel_split":
         return { component: "parallel_split", config: {} };
       case "merge_join":
         return { component: "merge_join", config: {} };
       case "delay":
-        return { component: "delay", config: { seconds: 1 } };
+        return { component: "delay", config: { seconds: "1", seconds_mode: "static" } };
       case "webhook_trigger":
         return { component: "webhook_trigger", config: { is_entry: true, method: "POST", path: "/webhook/endpoint" } };
       case "cron_trigger":
@@ -317,11 +391,37 @@ function FlowEditor({ fileId }: { fileId: string }) {
       case "manual_trigger":
         return { component: "manual_trigger", config: { is_entry: true } };
       case "header_extractor":
-        return { component: "header_extractor", config: { headers: [] } };
+        return { component: "header_extractor", config: { headers: [], header_mappings: [] } };
       case "auth_node":
-        return { component: "auth_node", config: { type: "api_key", header_name: "x-api-key" } };
+        return { component: "auth_node", config: { type: "api_key", header_name: "x-api-key", header_name_mode: "static" } };
       case "python_function":
         return { component: "python_function", config: { code: "# data = merged upstream inputs (dict)\n# return a dict\nreturn {\"result\": data}" } };
+      case "pg_find": case "mysql_find": case "sqlite_find": case "supa_find":
+        return { component: type, config: { connection_id: "", table: "", filter_mappings: [] } };
+      case "pg_insert": case "mysql_insert": case "sqlite_insert": case "supa_insert":
+        return { component: type, config: { connection_id: "", table: "" } };
+      case "pg_update": case "mysql_update": case "sqlite_update": case "supa_update":
+        return { component: type, config: { connection_id: "", table: "", filter_mappings: [] } };
+      case "pg_delete": case "mysql_delete": case "sqlite_delete": case "supa_delete":
+        return { component: type, config: { connection_id: "", table: "", filter_mappings: [] } };
+      case "pg_raw_query": case "mysql_raw_query": case "sqlite_raw_query": case "supa_raw_query":
+        return { component: type, config: { connection_id: "", query: "" } };
+      case "pg_txn_start": case "mysql_txn_start":
+        return { component: type, config: { connection_id: "" } };
+      case "pg_txn_commit": case "mysql_txn_commit":
+        return { component: type, config: {} };
+      case "pg_txn_rollback": case "mysql_txn_rollback":
+        return { component: type, config: {} };
+      case "mongo_find":
+        return { component: "mongo_find", config: { connection_id: "", database: "", collection: "", filter_mappings: [] } };
+      case "mongo_insert":
+        return { component: "mongo_insert", config: { connection_id: "", database: "", collection: "" } };
+      case "mongo_update":
+        return { component: "mongo_update", config: { connection_id: "", database: "", collection: "", filter_mappings: [] } };
+      case "mongo_delete":
+        return { component: "mongo_delete", config: { connection_id: "", database: "", collection: "", filter_mappings: [] } };
+      case "mongo_aggregate":
+        return { component: "mongo_aggregate", config: { connection_id: "", database: "", collection: "", pipeline: "[]" } };
       default:
         return { component: type, config: {} };
     }

@@ -1,0 +1,33 @@
+version: "3.9"
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: local-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: dummytat
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apppass
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "13306:3306"   # host:container
+
+  postgres:
+    image: postgres:15
+    container_name: local-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: dummytat
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: apppass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "15432:5432"   # host:container
+
+volumes:
+  mysql_data:
+  postgres_data:

@@ -15,6 +15,7 @@ Component registry lives in app.components.component_registry.
 
 import uuid as _uuid
 import logging
+from datetime import datetime, date
 from typing import Any, Dict, Optional
 
 from fastapi import FastAPI, Query, Request
@@ -24,6 +25,21 @@ from app.db.session import AsyncSessionLocal
 from app.models.models import WorkflowExecutionLog
 
 logger = logging.getLogger("uvicorn.error")
+
+
+def _json_serialize(obj: Any) -> Any:
+    """Recursively convert non-JSON-serializable types to serializable ones."""
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+    if isinstance(obj, _uuid.UUID):
+        return str(obj)
+    if isinstance(obj, bytes):
+        return obj.decode("utf-8", errors="replace")
+    if isinstance(obj, dict):
+        return {k: _json_serialize(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_json_serialize(item) for item in obj]
+    return obj
 
 _ACTIVE_ROUTES: Dict[str, dict] = {}
 
@@ -161,8 +177,8 @@ async def _handle_result(
     debug: bool,
 ) -> Any:
     """Persist execution log and return the appropriate response."""
-    trace  = execution.get("trace", [])
-    result = execution.get("result")
+    trace  = _json_serialize(execution.get("trace", []))
+    result = _json_serialize(execution.get("result"))
     exec_id = _uuid.uuid4()
 
     has_failure = any(

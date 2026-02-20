@@ -7,8 +7,8 @@ using `field_mappings` from the node's config.
 Each field mapping has:
   - name:   the response field name
   - type:   the data type (string, int, float, bool)
-  - source: "input" (pull from upstream data) or "static" (hardcoded value)
-  - value:  for input → the key to look up; for static → the literal value
+  - source: "input" (pull from upstream data), "static" (hardcoded value), or "expression" (evaluate path)
+  - value:  for input → the key; for static → literal; for expression → dot-path like input.data.name
 
 Falls back to the old `response_schema` behavior if no field_mappings exist.
 """
@@ -16,6 +16,7 @@ Falls back to the old `response_schema` behavior if no field_mappings exist.
 from typing import Any, Dict
 from app.components.base import BaseComponent
 from app.components.component_registry import register_component
+from app.db_connectors.interpolation import resolve_field_mapping
 
 
 _COERCE = {
@@ -67,19 +68,17 @@ class ResponseBuilderComponent(BaseComponent):
                 source = mapping.get("source", "input")
                 value  = mapping.get("value", "")
 
-                if source == "input":
-                    raw = merged.get(value, merged.get(name))
-                    if raw is not None:
-                        response[name] = raw
-                    else:
-                        defaults = {"string": "", "int": 0, "float": 0.0, "bool": False}
-                        response[name] = defaults.get(ftype, None)
+                raw = resolve_field_mapping(
+                    {"mode": source, "value": value}, merged
+                )
+
+                if raw is not None:
+                    response[name] = raw
+                elif source == "static":
+                    response[name] = value
                 else:
-                    coercer = _COERCE.get(ftype, str)
-                    try:
-                        response[name] = coercer(value)
-                    except (ValueError, TypeError):
-                        response[name] = value
+                    defaults = {"string": "", "int": 0, "float": 0.0, "bool": False}
+                    response[name] = defaults.get(ftype, None)
 
             return response
 

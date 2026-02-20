@@ -21,13 +21,44 @@ Special execution modes:
 import asyncio
 import logging
 import time
+import uuid as _uuid
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, date, timezone
+from decimal import Decimal
 from typing import Any, Dict, List, Set
 
 from app.components.component_registry import get_component
 
 logger = logging.getLogger("uvicorn.error")
+
+
+def _to_json_safe(obj: Any) -> Any:
+    """Recursively convert any non-JSON-serializable types in node output."""
+    if obj is None or isinstance(obj, (bool, int, float, str)):
+        return obj
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    if isinstance(obj, date):
+        return obj.isoformat()
+    if isinstance(obj, _uuid.UUID):
+        return str(obj)
+    if isinstance(obj, Decimal):
+        return float(obj)
+    if isinstance(obj, bytes):
+        return obj.decode("utf-8", errors="replace")
+    if isinstance(obj, dict):
+        return {str(k): _to_json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_to_json_safe(item) for item in obj]
+    if isinstance(obj, set):
+        return [_to_json_safe(item) for item in obj]
+    try:
+        from bson import ObjectId
+        if isinstance(obj, ObjectId):
+            return str(obj)
+    except ImportError:
+        pass
+    return str(obj)
 
 
 class GraphExecutor:
@@ -212,6 +243,7 @@ class GraphExecutor:
             result = await self._execute_node(
                 component, request_data, inputs, config
             )
+            result = _to_json_safe(result)
             trace_entry["status"] = "success"
         except Exception as exc:
             logger.error(f"Node {node_id} ({comp_name}) failed: {exc}")
@@ -349,9 +381,15 @@ class GraphExecutor:
 
             # ── loop_foreach: 4-handle iteration ─────────────────
             if comp_name == "loop_foreach" and result and isinstance(result, dict):
-                array_field = node.get("config", {}).get("array_field", "items")
+                from app.db_connectors.interpolation import resolve_field_mapping
+                node_config = node.get("config", {})
+                array_field_mapping = {
+                    "mode": node_config.get("array_field_mode", "expression"),
+                    "value": node_config.get("array_field", "items"),
+                }
                 data_payload = result.get("data", result)
-                items = data_payload.get(array_field, [])
+                resolved = resolve_field_mapping(array_field_mapping, data_payload)
+                items = resolved if isinstance(resolved, list) else data_payload.get(str(resolved) if resolved else "items", [])
 
                 body_ids = self._collect_loop_body(node_id)
                 already_done.update(body_ids)
@@ -367,11 +405,11 @@ class GraphExecutor:
                     )
                     loop_results.append(iter_output)
 
-                loop_output = {
+                loop_output = _to_json_safe({
                     "__loop_results__": loop_results,
                     "data": data_payload,
-                }
+                })
                 context[node_id] = loop_output
                 last_output = loop_output
 
-        return {"result": last_output, "trace": execution_trace}
+        return {"result": _to_json_safe(last_output), "trace": execution_trace}

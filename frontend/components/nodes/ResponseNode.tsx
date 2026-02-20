@@ -2,25 +2,26 @@
 
 import { Handle, Position, useReactFlow } from "reactflow";
 import { useCallback, useState } from "react";
-import { Send, Plus, Trash2, Link2, Type } from "lucide-react";
+import { Send, Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import NodeWrapper from "./NodeWrapper";
+import FieldModeInput, { FieldMode } from "./FieldModeInput";
 
 const FIELD_TYPES = [
+  "any",
   "string", "int", "float", "bool",
   "list", "dict", "json",
   "base64", "bytes",
   "image", "audio", "video", "file",
   "date", "datetime",
   "url", "email", "uuid",
-  "any",
 ] as const;
 
 interface FieldMapping {
   name: string;
   type: string;
-  source: "input" | "static";  // "input" = from upstream data, "static" = hardcoded
-  value: string;                // for input: the key to pull; for static: the literal value
+  source: FieldMode;  // "input" | "static" | "expression"
+  value: string;      // for input: key; for static: literal; for expression: expression string
 }
 
 export default function ResponseNode({ id, data, selected }: any) {
@@ -43,7 +44,7 @@ export default function ResponseNode({ id, data, selected }: any) {
   });
 
   const [newFieldName, setNewFieldName] = useState("");
-  const [newFieldType, setNewFieldType] = useState("string");
+  const [newFieldType, setNewFieldType] = useState("any");
 
   // ── immutable state update via setNodes ──
   const syncConfig = useCallback(
@@ -168,46 +169,17 @@ export default function ResponseNode({ id, data, selected }: any) {
             </div>
 
             {/* row 2: source toggle + value */}
-            <div className="flex items-center gap-1.5">
-              {/* source toggle */}
-              <button
-                onClick={() =>
-                  updateField(i, {
-                    source: f.source === "input" ? "static" : "input",
-                    value: "",
-                  })
-                }
-                className={`flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-md border transition-all shrink-0 ${
-                  f.source === "input"
-                    ? "bg-cyan-500/15 text-cyan-400 border-cyan-500/25"
-                    : "bg-violet-500/15 text-violet-400 border-violet-500/25"
-                }`}
-              >
-                {f.source === "input" ? (
-                  <>
-                    <Link2 className="w-3 h-3" />
-                    Input
-                  </>
-                ) : (
-                  <>
-                    <Type className="w-3 h-3" />
-                    Static
-                  </>
-                )}
-              </button>
-
-              {/* value input */}
-              <input
-                value={f.value}
-                onChange={(e) => updateField(i, { value: e.target.value })}
-                placeholder={
-                  f.source === "input"
-                    ? "key from upstream data"
-                    : "static value"
-                }
-                className="flex-1 bg-white/5 border border-white/10 rounded-md px-2 py-1 text-xs text-white placeholder-white/20 focus:outline-none focus:border-emerald-500/40 font-mono"
-              />
-            </div>
+            <FieldModeInput
+              mode={f.source}
+              value={f.value}
+              onModeChange={(mode) => updateField(i, { source: mode, value: "" })}
+              onValueChange={(value) => updateField(i, { value })}
+              placeholder={{
+                static: "fixed value",
+                input: "input.fieldName",
+                expression: "input.data.items[0].name",
+              }}
+            />
           </div>
         ))}
 

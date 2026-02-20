@@ -36,6 +36,15 @@ class ApiKey(Base):
     is_active = Column(Boolean, default=True, server_default="true")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+class DatabaseConnection(Base):
+    __tablename__ = "database_connections"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(String, index=True, nullable=False)
+    name = Column(String, nullable=False)
+    db_type = Column(String, nullable=False)
+    encrypted_credentials = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
 class WorkflowExecutionLog(Base):
     __tablename__ = "workflow_execution_logs"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

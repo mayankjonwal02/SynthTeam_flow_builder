@@ -1,0 +1,26 @@
+"""
+Fernet-based encryption for database credentials.
+
+Uses ENCRYPTION_KEY from environment. Credentials are serialized
+to JSON, encrypted, and stored as a base64 string.
+"""
+
+import json
+from cryptography.fernet import Fernet
+from app.core.config import settings
+
+
+def _get_fernet() -> Fernet:
+    return Fernet(settings.ENCRYPTION_KEY.encode())
+
+
+def encrypt_json(data: dict) -> str:
+    """Encrypt a dict to a Fernet-encrypted string."""
+    raw = json.dumps(data).encode()
+    return _get_fernet().encrypt(raw).decode()
+
+
+def decrypt_json(encrypted: str) -> dict:
+    """Decrypt a Fernet-encrypted string back to a dict."""
+    raw = _get_fernet().decrypt(encrypted.encode())
+    return json.loads(raw)
