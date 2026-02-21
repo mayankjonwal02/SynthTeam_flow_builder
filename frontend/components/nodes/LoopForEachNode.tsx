@@ -102,10 +102,14 @@ export default function LoopForEachNode({ id, data, selected }: any) {
           </div>
         </div>
 
-        <Handle type="target" position={Position.Left} id="in" style={{ top: "30%" }} className="!bg-cyan-500 !border-cyan-300 !w-3 !h-3" />
-        <Handle type="target" position={Position.Left} id="loop_back" style={{ top: "75%" }} className="!bg-cyan-600 !border-cyan-400 !w-3 !h-3" />
-        <Handle type="source" position={Position.Right} id="loop_out" style={{ top: "30%" }} className="!bg-cyan-400 !border-cyan-200 !w-3 !h-3" />
-        <Handle type="source" position={Position.Right} id="done" style={{ top: "75%" }} className="!bg-emerald-500 !border-emerald-300 !w-3 !h-3" />
+        <Handle type="target" position={Position.Left} id="in" style={{ top: "30%" }} className="!bg-cyan-500 !border-cyan-300 !w-3 !h-3" title="Input" />
+        <span className="absolute left-0 top-[30%] -translate-y-1/2 -translate-x-full pr-2 text-[9px] font-semibold uppercase tracking-wider text-white/50 whitespace-nowrap pointer-events-none">Input</span>
+        <Handle type="target" position={Position.Left} id="loop_back" style={{ top: "75%" }} className="!bg-cyan-600 !border-cyan-400 !w-3 !h-3" title="Loop back" />
+        <span className="absolute left-0 top-[75%] -translate-y-1/2 -translate-x-full pr-2 text-[9px] font-semibold uppercase tracking-wider text-white/50 whitespace-nowrap pointer-events-none">Loop back</span>
+        <Handle type="source" position={Position.Right} id="loop_out" style={{ top: "30%" }} className="!bg-cyan-400 !border-cyan-200 !w-3 !h-3" title="Loop out" />
+        <span className="absolute right-0 top-[30%] -translate-y-1/2 translate-x-full pl-2 text-[9px] font-semibold uppercase tracking-wider text-white/50 whitespace-nowrap pointer-events-none">Loop out</span>
+        <Handle type="source" position={Position.Right} id="done" style={{ top: "75%" }} className="!bg-emerald-500 !border-emerald-300 !w-3 !h-3" title="Done" />
+        <span className="absolute right-0 top-[75%] -translate-y-1/2 translate-x-full pl-2 text-[9px] font-semibold uppercase tracking-wider text-white/50 whitespace-nowrap pointer-events-none">Done</span>
       </div>
     </NodeWrapper>
   );

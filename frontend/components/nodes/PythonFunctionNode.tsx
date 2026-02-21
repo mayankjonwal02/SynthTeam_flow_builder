@@ -70,7 +70,7 @@ export default function PythonFunctionNode({ id, data, selected }: any) {
   return (
     <NodeWrapper id={id} name={nodeName} onNameChange={handleNameChange} accentColor="fuchsia">
       <div
-        className={`bg-[#1a1a2e] border rounded-xl shadow-2xl shadow-fuchsia-500/5 w-[340px] overflow-hidden ${
+        className={`bg-[#1a1a2e] border rounded-xl shadow-2xl shadow-fuchsia-500/5 w-[340px] relative overflow-visible ${
           selected
             ? "border-fuchsia-400 ring-1 ring-fuchsia-400/30"
             : "border-fuchsia-500/30"
@@ -110,16 +110,10 @@ export default function PythonFunctionNode({ id, data, selected }: any) {
           </div>
         </div>
 
-        <Handle
-          type="target"
-          position={Position.Left}
-          className="!bg-fuchsia-500 !border-fuchsia-300 !w-3 !h-3"
-        />
-        <Handle
-          type="source"
-          position={Position.Right}
-          className="!bg-fuchsia-500 !border-fuchsia-300 !w-3 !h-3"
-        />
+        <Handle type="target" id="input" position={Position.Left} className="!bg-fuchsia-500 !border-fuchsia-300 !w-3 !h-3" title="Input" />
+        <span className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full pr-2 text-[9px] font-semibold uppercase tracking-wider text-white/50 whitespace-nowrap pointer-events-none">Input</span>
+        <Handle type="source" id="output" position={Position.Right} className="!bg-fuchsia-500 !border-fuchsia-300 !w-3 !h-3" title="Output" />
+        <span className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-full pl-2 text-[9px] font-semibold uppercase tracking-wider text-white/50 whitespace-nowrap pointer-events-none">Output</span>
       </div>
     </NodeWrapper>
   );

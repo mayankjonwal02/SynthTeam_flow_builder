@@ -128,7 +128,7 @@ export default function ResponseNode({ id, data, selected }: any) {
 
   return (
     <NodeWrapper id={id} name={nodeName} onNameChange={handleNameChange} accentColor="emerald">
-    <div className={`bg-[#1a1a2e] border rounded-xl shadow-2xl shadow-emerald-500/5 w-[310px] overflow-hidden ${selected ? "border-emerald-400 ring-1 ring-emerald-400/30" : "border-emerald-500/30"}`}>
+    <div className={`bg-[#1a1a2e] border rounded-xl shadow-2xl shadow-emerald-500/5 w-[310px] relative overflow-visible ${selected ? "border-emerald-400 ring-1 ring-emerald-400/30" : "border-emerald-500/30"}`}>
       {/* ── header ── */}
       <div className="flex items-center gap-2 px-4 py-3 bg-emerald-500/10 border-b border-emerald-500/20">
         <Send className="w-4 h-4 text-emerald-400" />
@@ -222,9 +222,12 @@ export default function ResponseNode({ id, data, selected }: any) {
 
       <Handle
         type="target"
+        id="input"
         position={Position.Left}
         className="!bg-emerald-500 !border-emerald-300 !w-3 !h-3"
+        title="Input"
       />
+      <span className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full pr-2 text-[9px] font-semibold uppercase tracking-wider text-white/50 whitespace-nowrap pointer-events-none">Input</span>
     </div>
     </NodeWrapper>
   );

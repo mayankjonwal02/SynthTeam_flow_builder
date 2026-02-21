@@ -103,12 +103,30 @@ class GraphExecutor:
                 targets.append(entry)
         return targets
 
+    AI_HANDLE_TYPES = frozenset({
+        "ai_model", "ai_tool", "ai_memory", "ai_structure",
+        "ai_subagent", "ai_embedding", "ai_vectorstore",
+    })
+
     def _has_conditional_parents(self, node_id: str) -> bool:
         """Return True if at least one incoming edge has a condition."""
         for entry in self.edge_map.get(node_id, []):
             if entry.get("condition") is not None:
                 return True
         return False
+
+    def _gather_ai_handle_inputs(
+        self, node_id: str, context: Dict[str, Any]
+    ) -> Dict[str, list]:
+        """Collect parent outputs grouped by typed AI handle."""
+        ai: Dict[str, list] = {h: [] for h in self.AI_HANDLE_TYPES}
+        for entry in self.edge_map.get(node_id, []):
+            handle = entry.get("targetHandle") or "default"
+            if handle in ai:
+                pid = entry["parent"]
+                if pid in context:
+                    ai[handle].append(context[pid])
+        return ai
 
     def _gather_inputs(
         self, node_id: str, context: Dict[str, Any],
@@ -131,8 +149,12 @@ class GraphExecutor:
             pid  = entry["parent"]
             cond = entry.get("condition")
 
+            handle = entry.get("targetHandle") or "default"
+            if handle in self.AI_HANDLE_TYPES:
+                continue
+
             if filter_target_handle is not None:
-                if entry.get("targetHandle") != filter_target_handle:
+                if handle != filter_target_handle:
                     continue
 
             if pid not in context:
@@ -214,8 +236,12 @@ class GraphExecutor:
         config    = node.get("config", {})
 
         inputs = self._gather_inputs(node_id, context)
+        ai_inputs = self._gather_ai_handle_inputs(node_id, context)
+        has_ai = any(v for v in ai_inputs.values())
+        if has_ai:
+            config = {**config, "__ai_inputs__": ai_inputs}
 
-        if not inputs and self._has_conditional_parents(node_id):
+        if not inputs and not has_ai and self._has_conditional_parents(node_id):
             skipped.add(node_id)
             execution_trace.append({
                 "node_id":     node_id,

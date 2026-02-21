@@ -55,6 +55,44 @@ import SupaUpdateNode from "./db/SupaUpdateNode";
 import SupaDeleteNode from "./db/SupaDeleteNode";
 import SupaQueryNode from "./db/SupaQueryNode";
 
+// AI Config Nodes
+import LLMModelNode from "./ai/LLMModelNode";
+import OutputStructureNode from "./ai/OutputStructureNode";
+import MemoryConfigNode from "./ai/MemoryConfigNode";
+import EmbeddingModelNode from "./ai/EmbeddingModelNode";
+import VectorStoreConfigNode from "./ai/VectorStoreConfigNode";
+
+// AI Tool Nodes
+import ToolWebSearchNode from "./ai/ToolWebSearchNode";
+import ToolHttpNode from "./ai/ToolHttpNode";
+import ToolCalculatorNode from "./ai/ToolCalculatorNode";
+import ToolDBQueryNode from "./ai/ToolDBQueryNode";
+import ToolCodeNode from "./ai/ToolCodeNode";
+import ToolFileOpsNode from "./ai/ToolFileOpsNode";
+import ToolEmailNode from "./ai/ToolEmailNode";
+import ToolGmailNode from "./ai/ToolGmailNode";
+import ToolSlackNode from "./ai/ToolSlackNode";
+import ToolWorkflowNode from "./ai/ToolWorkflowNode";
+import ToolComposioNode from "./ai/ToolComposioNode";
+import ToolKnowledgeBaseNode from "./ai/ToolKnowledgeBaseNode";
+
+// RAG Pipeline Nodes
+import DocLoaderNode from "./ai/DocLoaderNode";
+import TextSplitterNode from "./ai/TextSplitterNode";
+
+// AI Execution Nodes
+import LLMCallNode from "./ai/LLMCallNode";
+import EmbeddingNode from "./ai/EmbeddingNode";
+import VectorUpsertNode from "./ai/VectorUpsertNode";
+import VectorSearchNode from "./ai/VectorSearchNode";
+import VectorDeleteNode from "./ai/VectorDeleteNode";
+import RetrievalNode from "./ai/RetrievalNode";
+import AgentRunNode from "./ai/AgentRunNode";
+import AutonomousAgentNode from "./ai/AutonomousAgentNode";
+import VisionNode from "./ai/VisionNode";
+import STTNode from "./ai/STTNode";
+import TTSNode from "./ai/TTSNode";
+
 export const nodeTypes = {
   http_entry: HttpEntryNode,
   processor: ProcessorNode,
@@ -102,4 +140,38 @@ export const nodeTypes = {
   supa_update: SupaUpdateNode,
   supa_delete: SupaDeleteNode,
   supa_raw_query: SupaQueryNode,
+  // AI Config
+  llm_model: LLMModelNode,
+  output_structure: OutputStructureNode,
+  memory_config: MemoryConfigNode,
+  embedding_model: EmbeddingModelNode,
+  vectorstore_config: VectorStoreConfigNode,
+  // AI Tools
+  tool_web_search: ToolWebSearchNode,
+  tool_http_request: ToolHttpNode,
+  tool_calculator: ToolCalculatorNode,
+  tool_db_query: ToolDBQueryNode,
+  tool_code_executor: ToolCodeNode,
+  tool_file_ops: ToolFileOpsNode,
+  tool_email: ToolEmailNode,
+  tool_gmail: ToolGmailNode,
+  tool_slack: ToolSlackNode,
+  tool_workflow: ToolWorkflowNode,
+  tool_composio: ToolComposioNode,
+  tool_knowledge_base: ToolKnowledgeBaseNode,
+  // RAG Pipeline
+  doc_loader: DocLoaderNode,
+  text_splitter: TextSplitterNode,
+  // AI Execution
+  llm_call: LLMCallNode,
+  embedding_generate: EmbeddingNode,
+  vector_upsert: VectorUpsertNode,
+  vector_search: VectorSearchNode,
+  vector_delete: VectorDeleteNode,
+  retrieval: RetrievalNode,
+  agent_run: AgentRunNode,
+  autonomous_agent: AutonomousAgentNode,
+  vision_analyze: VisionNode,
+  speech_to_text: STTNode,
+  text_to_speech: TTSNode,
 };

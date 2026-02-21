@@ -105,7 +105,7 @@ export function createDBNode(cfg: DBNodeConfig) {
 
     return (
       <NodeWrapper id={id} name={nodeName} onNameChange={(n) => { setNodeName(n); syncConfig(connId, database, tableOrColl, filters, query, n); }} accentColor={cfg.accentColor}>
-        <div className={`bg-[#1a1a2e] border rounded-xl shadow-2xl ${ac.shadow} w-80 overflow-hidden ${selected ? `${ac.border} ring-1 ring-${cfg.accentColor}-400/30` : ac.border.replace("border-", "border-").replace("400", "500/30")}`}>
+        <div className={`bg-[#1a1a2e] border rounded-xl shadow-2xl ${ac.shadow} w-80 relative overflow-visible ${selected ? `${ac.border} ring-1 ring-${cfg.accentColor}-400/30` : ac.border.replace("border-", "border-").replace("400", "500/30")}`}>
           <div className={`flex items-center gap-2 px-4 py-3 ${ac.bg} border-b ${ac.border.replace("400", "500/20")}`}>
             <Icon className={`w-4 h-4 ${ac.text}`} />
             <span className={`text-sm font-semibold ${ac.text.replace("400", "300")}`}>{nodeName}</span>
@@ -165,8 +165,10 @@ export function createDBNode(cfg: DBNodeConfig) {
               </div>
             )}
           </div>
-          <Handle type="target" position={Position.Left} className={`!w-3 !h-3 !bg-${cfg.accentColor}-500 !border-${cfg.accentColor}-300`} />
-          <Handle type="source" position={Position.Right} className={`!w-3 !h-3 !bg-${cfg.accentColor}-500 !border-${cfg.accentColor}-300`} />
+          <Handle type="target" id="input" position={Position.Left} className={`!w-3 !h-3 !bg-${cfg.accentColor}-500 !border-${cfg.accentColor}-300`} title="Input" />
+          <span className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full pr-2 text-[9px] font-semibold uppercase tracking-wider text-white/50 whitespace-nowrap pointer-events-none">Input</span>
+          <Handle type="source" id="output" position={Position.Right} className={`!w-3 !h-3 !bg-${cfg.accentColor}-500 !border-${cfg.accentColor}-300`} title="Output" />
+          <span className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-full pl-2 text-[9px] font-semibold uppercase tracking-wider text-white/50 whitespace-nowrap pointer-events-none">Output</span>
         </div>
       </NodeWrapper>
     );

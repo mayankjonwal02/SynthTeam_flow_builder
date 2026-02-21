@@ -49,6 +49,15 @@ async def startup():
     logger.info(f"Registered DB connectors: {list_connectors()}")
 
     try:
+        import app.ai  # noqa: F401  — triggers AI provider/tool registration
+        from app.ai.llm.registry import list_llm_providers
+        from app.ai.tools.registry import list_tools
+        logger.info(f"Registered LLM providers: {list_llm_providers()}")
+        logger.info(f"Registered AI tools: {list_tools()}")
+    except Exception as exc:
+        logger.warning(f"AI layer not fully available (install langchain deps): {exc}")
+
+    try:
         import redis.asyncio as aioredis
         from app.core.config import settings
         application.state.redis = aioredis.from_url(
@@ -89,6 +98,12 @@ application.include_router(project_router)
 application.include_router(file_router)
 application.include_router(db_connections_router)
 application.include_router(router)
+
+try:
+    from app.ai.a2a.router import router as a2a_router
+    application.include_router(a2a_router)
+except ImportError:
+    pass
 
 # uvicorn entrypoint alias: `uvicorn app.main:app`
 app = application
