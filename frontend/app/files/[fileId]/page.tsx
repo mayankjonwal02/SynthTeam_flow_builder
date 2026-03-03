@@ -54,6 +54,31 @@ import {
   PlayCircle,
   CheckCircle,
   RotateCcw,
+  Sparkles,
+  Bot,
+  Users,
+  Wand2,
+  Eye,
+  Mic,
+  Volume2,
+  Upload,
+  BookOpen,
+  Trash2,
+  FileJson,
+  Brain,
+  Database,
+  Calculator,
+  Mail,
+  MessageSquare,
+  Workflow,
+  Puzzle,
+  FileText,
+  FileUp,
+  Scissors,
+  Sparkle,
+  X,
+  PanelRightOpen,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ExecutionDrawer from "@/components/ExecutionDrawer";
@@ -61,6 +86,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import AICopilotPanel from "@/components/agent/AICopilotPanel";
 
 const edgeTypes = { deletable: DeletableEdge };
 
@@ -177,6 +203,66 @@ const PALETTE_SECTIONS: PaletteSection[] = [
       { type: "supa_raw_query",   label: "Supa Query",      description: "Raw SQL on Supabase",          icon: TerminalSquare, accent: "bg-emerald-600/20 text-emerald-400 border-emerald-600/30" },
     ],
   },
+  {
+    title: "AI Config",
+    items: [
+      { type: "llm_model",            label: "LLM Model",         description: "Configure LLM provider & model", icon: Cpu,      accent: "bg-purple-500/20 text-purple-400 border-purple-500/30" },
+      { type: "output_structure",      label: "Output Structure",  description: "JSON schema for structured output", icon: FileJson, accent: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
+      { type: "memory_config",         label: "Memory",            description: "Agent memory backend config",   icon: Brain,     accent: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30" },
+      { type: "embedding_model",       label: "Embedding Model",   description: "Configure embedding provider",  icon: Layers,    accent: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30" },
+      { type: "vectorstore_config",    label: "Vector Store",      description: "Configure vector DB connection", icon: Database,  accent: "bg-violet-500/20 text-violet-400 border-violet-500/30" },
+    ],
+  },
+  {
+    title: "AI Tools",
+    items: [
+      { type: "tool_web_search",      label: "Web Search",        description: "Tavily web search tool",        icon: Globe,     accent: "bg-amber-500/20 text-amber-400 border-amber-500/30" },
+      { type: "tool_http_request",     label: "HTTP Request",      description: "HTTP call tool for agents",     icon: Send,      accent: "bg-amber-500/20 text-amber-400 border-amber-500/30" },
+      { type: "tool_calculator",       label: "Calculator",        description: "Math evaluation tool",          icon: Calculator, accent: "bg-amber-500/20 text-amber-400 border-amber-500/30" },
+      { type: "tool_db_query",         label: "DB Query",          description: "Database query tool",           icon: DatabaseZap, accent: "bg-amber-500/20 text-amber-400 border-amber-500/30" },
+      { type: "tool_code_executor",    label: "Code Executor",     description: "Sandboxed Python tool",         icon: Code2,     accent: "bg-amber-500/20 text-amber-400 border-amber-500/30" },
+      { type: "tool_file_ops",         label: "File Ops",          description: "File read/write tool",          icon: FileText,  accent: "bg-amber-500/20 text-amber-400 border-amber-500/30" },
+      { type: "tool_email",            label: "Email Sender",      description: "SMTP email tool",               icon: Mail,      accent: "bg-amber-500/20 text-amber-400 border-amber-500/30" },
+      { type: "tool_gmail",            label: "Gmail",             description: "Send email via Gmail SMTP",    icon: Mail,      accent: "bg-red-500/20 text-red-400 border-red-500/30" },
+      { type: "tool_slack",            label: "Slack Notifier",    description: "Slack webhook tool",            icon: MessageSquare, accent: "bg-amber-500/20 text-amber-400 border-amber-500/30" },
+      { type: "tool_workflow",         label: "Workflow Invoker",  description: "Call other workflows",          icon: Workflow,  accent: "bg-amber-500/20 text-amber-400 border-amber-500/30" },
+      { type: "tool_composio",         label: "Composio",          description: "Composio actions integration",  icon: Puzzle,    accent: "bg-amber-500/20 text-amber-400 border-amber-500/30" },
+      { type: "tool_knowledge_base",   label: "Knowledge Base",    description: "RAG retrieval tool for agents", icon: BookOpen,  accent: "bg-amber-500/20 text-amber-400 border-amber-500/30" },
+    ],
+  },
+  {
+    title: "AI / LLM",
+    items: [
+      { type: "llm_call",             label: "LLM Call",          description: "Multi-provider LLM invocation", icon: Sparkles,  accent: "bg-purple-500/20 text-purple-400 border-purple-500/30" },
+    ],
+  },
+  {
+    title: "RAG Pipeline",
+    items: [
+      { type: "doc_loader",           label: "Document Loader",   description: "Load text from URL/file/raw",   icon: FileUp,    accent: "bg-teal-500/20 text-teal-400 border-teal-500/30" },
+      { type: "text_splitter",        label: "Text Splitter",     description: "Chunk documents for embedding", icon: Scissors,  accent: "bg-teal-500/20 text-teal-400 border-teal-500/30" },
+      { type: "embedding_generate",   label: "Embedding",         description: "Generate text embeddings",      icon: Layers,    accent: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30" },
+      { type: "vector_upsert",        label: "Vector Upsert",     description: "Insert into vector DB",         icon: Upload,    accent: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30" },
+      { type: "vector_search",        label: "Vector Search",     description: "Similarity search",             icon: Search,    accent: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30" },
+      { type: "vector_delete",        label: "Vector Delete",     description: "Delete from vector DB",         icon: Trash2,    accent: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30" },
+      { type: "retrieval",            label: "RAG Retrieval",     description: "Embed + search + return context", icon: BookOpen, accent: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30" },
+    ],
+  },
+  {
+    title: "Agents",
+    items: [
+      { type: "agent_run",            label: "Agent (ReAct)",     description: "ReAct agent with tools",        icon: Bot,       accent: "bg-pink-500/20 text-pink-400 border-pink-500/30" },
+      { type: "autonomous_agent",     label: "Autonomous Agent",  description: "Plans & executes autonomously", icon: Wand2,     accent: "bg-pink-500/20 text-pink-400 border-pink-500/30" },
+    ],
+  },
+  {
+    title: "Vision & Speech",
+    items: [
+      { type: "vision_analyze",       label: "Vision Analyze",    description: "Analyze images with AI",        icon: Eye,       accent: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30" },
+      { type: "speech_to_text",       label: "Speech to Text",    description: "Transcribe audio to text",      icon: Mic,       accent: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30" },
+      { type: "text_to_speech",       label: "Text to Speech",    description: "Convert text to audio",         icon: Volume2,   accent: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30" },
+    ],
+  },
 ];
 
 // ── MiniMap color mapping ───────────────────────────────────────────
@@ -206,6 +292,22 @@ const MINIMAP_COLORS: Record<string, string> = {
   sqlite_raw_query:   "#d97706",
   supa_find:          "#059669", supa_insert: "#059669", supa_update: "#059669", supa_delete: "#059669",
   supa_raw_query:     "#059669",
+  // AI Config
+  llm_model: "#a855f7", output_structure: "#10b981", memory_config: "#06b6d4",
+  embedding_model: "#6366f1", vectorstore_config: "#8b5cf6",
+  // AI Tools
+  tool_web_search: "#f59e0b", tool_http_request: "#f59e0b", tool_calculator: "#f59e0b",
+  tool_db_query: "#f59e0b", tool_code_executor: "#f59e0b", tool_file_ops: "#f59e0b",
+  tool_email: "#f59e0b", tool_gmail: "#ef4444", tool_slack: "#f59e0b", tool_workflow: "#f59e0b",
+  tool_composio: "#f59e0b", tool_knowledge_base: "#f59e0b",
+  // RAG Pipeline
+  doc_loader: "#14b8a6", text_splitter: "#14b8a6",
+  // AI Execution
+  llm_call: "#a855f7",
+  embedding_generate: "#6366f1", vector_upsert: "#6366f1", vector_search: "#6366f1", vector_delete: "#6366f1",
+  retrieval: "#6366f1",
+  agent_run: "#ec4899", autonomous_agent: "#ec4899",
+  vision_analyze: "#06b6d4", speech_to_text: "#06b6d4", text_to_speech: "#06b6d4",
 };
 
 // ── inner component (needs ReactFlowProvider above it) ─────────────
@@ -221,7 +323,9 @@ function FlowEditor({ fileId }: { fileId: string }) {
   const [deployedMethod, setDeployedMethod] = useState<string | null>(null);
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [copilotOpen, setCopilotOpen] = useState(false);
   const [overlayActive, setOverlayActive] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(["Triggers"]));
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const savedStylesRef = useRef<Map<string, any>>(new Map());
   const { getToken } = useAuth();
@@ -422,6 +526,70 @@ function FlowEditor({ fileId }: { fileId: string }) {
         return { component: "mongo_delete", config: { connection_id: "", database: "", collection: "", filter_mappings: [] } };
       case "mongo_aggregate":
         return { component: "mongo_aggregate", config: { connection_id: "", database: "", collection: "", pipeline: "[]" } };
+      // AI Config nodes
+      case "llm_model":
+        return { component: "llm_model", config: { provider: "openai", model: "gpt-4o-mini", api_key: "", temperature: "0.7" } };
+      case "output_structure":
+        return { component: "output_structure", config: { schema: "" } };
+      case "memory_config":
+        return { component: "memory_config", config: { backend: "in_memory", session_id: "default", max_messages: "50" } };
+      case "embedding_model":
+        return { component: "embedding_model", config: { provider: "openai", model: "", api_key: "" } };
+      case "vectorstore_config":
+        return { component: "vectorstore_config", config: { provider: "qdrant", collection: "default", url: "", api_key: "" } };
+      // AI Tool nodes
+      case "tool_web_search":
+        return { component: "tool_web_search", config: { api_key: "", max_results: "5" } };
+      case "tool_http_request":
+        return { component: "tool_http_request", config: { allowed_methods: "GET,POST", timeout: "30" } };
+      case "tool_calculator":
+        return { component: "tool_calculator", config: {} };
+      case "tool_db_query":
+        return { component: "tool_db_query", config: { db_type: "postgres", connection_id: "" } };
+      case "tool_code_executor":
+        return { component: "tool_code_executor", config: { timeout: "10" } };
+      case "tool_file_ops":
+        return { component: "tool_file_ops", config: { mode: "read", base_path: "/tmp" } };
+      case "tool_email":
+        return { component: "tool_email", config: { smtp_host: "", smtp_port: "587", username: "", password: "", from_email: "" } };
+      case "tool_gmail":
+        return { component: "tool_gmail", config: { email: "", app_password: "" } };
+      case "tool_slack":
+        return { component: "tool_slack", config: { webhook_url: "" } };
+      case "tool_workflow":
+        return { component: "tool_workflow", config: { workflow_url: "", method: "POST" } };
+      case "tool_composio":
+        return { component: "tool_composio", config: { api_key: "", action: "" } };
+      case "tool_knowledge_base":
+        return { component: "tool_knowledge_base", config: { data_description: "", collection: "default", top_k: "5", embedding_provider: "openai", embedding_model: "", embedding_api_key: "", vectorstore_provider: "qdrant", vectorstore_url: "", vectorstore_api_key: "" } };
+      // RAG pipeline nodes
+      case "doc_loader":
+        return { component: "doc_loader", config: { source_type: "text", text: "", url: "", file_path: "" } };
+      case "text_splitter":
+        return { component: "text_splitter", config: { strategy: "character", chunk_size: "1000", overlap: "200" } };
+      // AI Execution nodes
+      case "llm_call":
+        return { component: "llm_call", config: { system_prompt: "", system_prompt_source: "static", prompt_template: "{{input}}", prompt_template_source: "static" } };
+      case "embedding_generate":
+        return { component: "embedding_generate", config: { text_template: "{{input}}" } };
+      case "vector_upsert":
+        return { component: "vector_upsert", config: {} };
+      case "vector_search":
+        return { component: "vector_search", config: { top_k: "5" } };
+      case "vector_delete":
+        return { component: "vector_delete", config: {} };
+      case "retrieval":
+        return { component: "retrieval", config: { top_k: "5" } };
+      case "agent_run":
+        return { component: "agent_run", config: { system_prompt: "", system_prompt_source: "static", prompt_template: "{{input}}", prompt_template_source: "static", max_iterations: "10" } };
+      case "autonomous_agent":
+        return { component: "autonomous_agent", config: { system_prompt: "", system_prompt_source: "static", goal: "{{input}}", goal_source: "static", max_iterations: "10" } };
+      case "vision_analyze":
+        return { component: "vision_analyze", config: { image_url: "", prompt: "Describe this image." } };
+      case "speech_to_text":
+        return { component: "speech_to_text", config: { provider: "openai_whisper", audio_path: "" } };
+      case "text_to_speech":
+        return { component: "text_to_speech", config: { provider: "openai", voice: "alloy", text_template: "{{input}}" } };
       default:
         return { component: type, config: {} };
     }
@@ -443,16 +611,64 @@ function FlowEditor({ fileId }: { fileId: string }) {
     [nodes.length, setNodes]
   );
 
+  const CONFIG_TOOL_SUBAGENT_TYPES = new Set([
+    "llm_model", "output_structure", "memory_config", "embedding_model", "vectorstore_config",
+    "tool_web_search", "tool_http_request", "tool_calculator", "tool_db_query", "tool_code_executor",
+    "tool_file_ops", "tool_email", "tool_gmail", "tool_slack", "tool_workflow", "tool_composio", "tool_knowledge_base",
+    "agent_run", "autonomous_agent",
+  ]);
+
   const onConnect = useCallback(
     (conn: Connection) => {
+      const sourceNode = nodes.find((n: any) => n.id === conn.source);
+      const sourceType = sourceNode?.type || "";
+      let targetHandle = conn.targetHandle || "";
+
+      if (targetHandle.startsWith("ai_")) {
+        const expectedBySource: Record<string, string> = {
+          llm_model: "ai_model",
+          output_structure: "ai_structure",
+          memory_config: "ai_memory",
+          embedding_model: "ai_embedding",
+          vectorstore_config: "ai_vectorstore",
+          tool_web_search: "ai_tool",
+          tool_http_request: "ai_tool",
+          tool_calculator: "ai_tool",
+          tool_db_query: "ai_tool",
+          tool_code_executor: "ai_tool",
+          tool_file_ops: "ai_tool",
+          tool_email: "ai_tool",
+          tool_gmail: "ai_tool",
+          tool_slack: "ai_tool",
+          tool_workflow: "ai_tool",
+          tool_composio: "ai_tool",
+          tool_knowledge_base: "ai_tool",
+          agent_run: "ai_subagent",
+          autonomous_agent: "ai_subagent",
+        };
+        if (CONFIG_TOOL_SUBAGENT_TYPES.has(sourceType)) {
+          const expected = expectedBySource[sourceType];
+          if (!expected || expected !== targetHandle) {
+            toast.error("Invalid connection", {
+              description: "Connect config/tool nodes to the matching handle (Model, Tools, Memory, etc.).",
+            });
+            return;
+          }
+        } else {
+          targetHandle = "input";
+        }
+      }
+
+      const finalConn = { ...conn, targetHandle: targetHandle || conn.targetHandle };
+
       setEdges((eds) =>
         addEdge(
-          { ...conn, animated: true, style: { stroke: "#6366f1", strokeWidth: 2 } },
+          { ...finalConn, animated: true, style: { stroke: "#6366f1", strokeWidth: 2 } },
           eds
         )
       );
     },
-    [setEdges]
+    [nodes, setEdges]
   );
 
   return (
@@ -474,74 +690,99 @@ function FlowEditor({ fileId }: { fileId: string }) {
           </div>
         </div>
 
-        <ScrollArea className="flex-1 overflow-hidden px-4 pt-3">
-          {PALETTE_SECTIONS.map((section, si) => (
-            <div key={section.title} className={si > 0 ? "mt-1" : ""}>
-              <div className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-semibold mb-2 mt-2">
-                {section.title}
-              </div>
-              <div className="space-y-1.5 mb-2">
-                {section.items.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <button
-                      key={item.type}
-                      onClick={() => addNode(item.type)}
-                      className="w-full group flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.06] hover:border-white/[0.15] hover:bg-white/[0.05] transition-all duration-200"
-                    >
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center border ${item.accent} transition-colors shrink-0`}>
-                        <Icon className="w-3.5 h-3.5" />
-                      </div>
-                      <div className="text-left flex-1 min-w-0">
-                        <div className="text-[11px] font-medium text-white/80 group-hover:text-white transition-colors truncate">
-                          {item.label}
-                        </div>
-                        <div className="text-[9px] text-white/30 truncate">
-                          {item.description}
-                        </div>
-                      </div>
-                      <Grip className="w-3 h-3 text-white/10 group-hover:text-white/30 transition-colors shrink-0" />
-                    </button>
-                  );
-                })}
-              </div>
-              {si < PALETTE_SECTIONS.length - 1 && (
-                <Separator className="bg-white/[0.06] my-1.5" />
-              )}
-            </div>
-          ))}
+        <ScrollArea className="flex-1 min-h-0 px-3 pt-2">
+          <div className="space-y-0.5 pb-2">
+            {PALETTE_SECTIONS.map((section) => {
+              const isExpanded = expandedSections.has(section.title);
+              return (
+                <div key={section.title}>
+                  <button
+                    onClick={() =>
+                      setExpandedSections((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(section.title)) next.delete(section.title);
+                        else next.add(section.title);
+                        return next;
+                      })
+                    }
+                    className="w-full flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-white/[0.04] transition-colors group"
+                  >
+                    <ChevronRight
+                      className={`w-3.5 h-3.5 text-white/30 group-hover:text-white/50 transition-transform duration-200 shrink-0 ${
+                        isExpanded ? "rotate-90" : ""
+                      }`}
+                    />
+                    <span className="text-[11px] uppercase tracking-[0.15em] text-white/40 group-hover:text-white/60 font-semibold transition-colors">
+                      {section.title}
+                    </span>
+                    <span className="ml-auto text-[10px] text-white/20 font-mono tabular-nums">
+                      {section.items.length}
+                    </span>
+                  </button>
 
-          <Separator className="bg-white/[0.06] my-2" />
-
-          {/* info panel */}
-          <div className="pb-4 space-y-2">
-            <div className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-semibold mb-2">
-              Info
-            </div>
-            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-3 space-y-1.5">
-              <div className="flex justify-between text-xs">
-                <span className="text-white/30">Nodes</span>
-                <span className="text-white/60 font-mono">{nodes.length}</span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-white/30">Edges</span>
-                <span className="text-white/60 font-mono">{edges.length}</span>
-              </div>
-            </div>
-            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-3 space-y-2">
-              <div className="text-[10px] text-white/25 leading-relaxed">
-                <strong className="text-white/40">Tip:</strong> Connect a{" "}
-                <span className="text-blue-400">Trigger</span> to{" "}
-                <span className="text-amber-400">Logic/Processors</span> to a{" "}
-                <span className="text-emerald-400">Response</span> to build a pipeline.
-              </div>
-              <div className="text-[10px] text-white/25 leading-relaxed">
-                <strong className="text-white/40">Delete:</strong> Hover a node or click an edge and use the{" "}
-                <span className="text-red-400">x</span> button.
-              </div>
-            </div>
+                  {isExpanded && (
+                    <div className="space-y-1 pl-2 pr-1 pb-1.5 pt-0.5">
+                      {section.items.map((item) => {
+                        const Icon = item.icon;
+                        return (
+                          <button
+                            key={item.type}
+                            onClick={() => addNode(item.type)}
+                            className="w-full group flex items-center gap-2.5 p-2 rounded-lg bg-white/[0.02] border border-white/[0.04] hover:border-white/[0.15] hover:bg-white/[0.05] transition-all duration-200"
+                          >
+                            <div
+                              className={`w-7 h-7 rounded-md flex items-center justify-center border ${item.accent} transition-colors shrink-0`}
+                            >
+                              <Icon className="w-3.5 h-3.5" />
+                            </div>
+                            <div className="text-left flex-1 min-w-0">
+                              <div className="text-[11px] font-medium text-white/80 group-hover:text-white transition-colors truncate">
+                                {item.label}
+                              </div>
+                              <div className="text-[9px] text-white/30 truncate leading-tight">
+                                {item.description}
+                              </div>
+                            </div>
+                            <Grip className="w-3 h-3 text-white/10 group-hover:text-white/30 transition-colors shrink-0" />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </ScrollArea>
+
+        {/* Info panel — fixed at bottom so nodes/edges count is always visible */}
+        <div className="shrink-0 border-t border-white/[0.06] bg-[#0d0d14] px-4 py-3 space-y-2">
+          <div className="text-[10px] uppercase tracking-[0.2em] text-white/40 font-semibold">
+            Graph
+          </div>
+          <div className="bg-white/[0.06] border border-white/[0.1] rounded-xl p-3 space-y-2">
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-white/60">Nodes</span>
+              <span className="text-white font-mono font-medium tabular-nums">{nodes.length}</span>
+            </div>
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-white/60">Edges</span>
+              <span className="text-white font-mono font-medium tabular-nums">{edges.length}</span>
+            </div>
+          </div>
+          <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-2.5 space-y-1.5">
+            <div className="text-[10px] text-white/50 leading-relaxed">
+              <strong className="text-white/70">Tip:</strong> Connect a{" "}
+              <span className="text-blue-400">Trigger</span> →{" "}
+              <span className="text-amber-400">Processors</span> →{" "}
+              <span className="text-emerald-400">Response</span>.
+            </div>
+            <div className="text-[10px] text-white/50 leading-relaxed">
+              <strong className="text-white/70">Delete:</strong> Hover node or edge and click{" "}
+              <span className="text-red-400">×</span>.
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* ── MAIN AREA ────────────────────────────────────────────── */}
@@ -574,6 +815,20 @@ function FlowEditor({ fileId }: { fileId: string }) {
                 Clear overlay
               </Button>
             )}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setCopilotOpen((p) => !p)}
+                  className={`gap-2 ${copilotOpen ? "text-purple-400 bg-purple-500/10 hover:bg-purple-500/20" : "text-white/60 hover:text-white hover:bg-white/10"}`}
+                >
+                  <Sparkle className="w-4 h-4" />
+                  <span className="text-xs">AI Copilot</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>AI assistant to help build your workflow</TooltipContent>
+            </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="ghost" size="sm" onClick={() => setDrawerOpen(true)} className="text-white/60 hover:text-white hover:bg-white/10 gap-2">
@@ -616,36 +871,50 @@ function FlowEditor({ fileId }: { fileId: string }) {
           </div>
         </div>
 
-        <div className="flex-1 relative" ref={reactFlowWrapper}>
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            nodeTypes={nodeTypes}
-            edgeTypes={edgeTypes}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onInit={setRfInstance}
-            deleteKeyCode={null}
-            fitView
-            style={rfStyle}
-            defaultEdgeOptions={{
-              type: "deletable",
-              animated: true,
-              style: { stroke: "#6366f1", strokeWidth: 2 },
-            }}
-            proOptions={{ hideAttribution: true }}
-          >
-            <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="#ffffff08" />
-            <Controls className="!bg-[#1a1a2e] !border-white/10 !rounded-xl !shadow-2xl [&>button]:!bg-[#1a1a2e] [&>button]:!border-white/10 [&>button]:!text-white/50 [&>button:hover]:!bg-white/10 [&>button:hover]:!text-white" />
-            <MiniMap
-              nodeColor={(n) => MINIMAP_COLORS[n.type || ""] || "#6366f1"}
-              maskColor="rgba(0,0,0,0.85)"
-              className="!bg-[#0d0d14] !border-white/[0.06] !rounded-xl"
-              pannable
-              zoomable
-            />
-          </ReactFlow>
+        <div className="flex-1 flex min-h-0">
+          <div className="flex-1 relative" ref={reactFlowWrapper}>
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              nodeTypes={nodeTypes}
+              edgeTypes={edgeTypes}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              onInit={setRfInstance}
+              deleteKeyCode={null}
+              fitView
+              style={rfStyle}
+              defaultEdgeOptions={{
+                type: "deletable",
+                animated: true,
+                style: { stroke: "#6366f1", strokeWidth: 2 },
+              }}
+              proOptions={{ hideAttribution: true }}
+            >
+              <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="#ffffff08" />
+              <Controls className="!bg-[#1a1a2e] !border-white/10 !rounded-xl !shadow-2xl [&>button]:!bg-[#1a1a2e] [&>button]:!border-white/10 [&>button]:!text-white/50 [&>button:hover]:!bg-white/10 [&>button:hover]:!text-white" />
+              <MiniMap
+                nodeColor={(n) => MINIMAP_COLORS[n.type || ""] || "#6366f1"}
+                maskColor="rgba(0,0,0,0.85)"
+                className="!bg-[#0d0d14] !border-white/[0.06] !rounded-xl"
+                pannable
+                zoomable
+              />
+            </ReactFlow>
+          </div>
+
+          {copilotOpen && (
+            <div className="w-[380px] border-l border-white/[0.06] shrink-0">
+              <AICopilotPanel
+                nodes={nodes}
+                edges={edges}
+                setNodes={setNodes}
+                setEdges={setEdges}
+                onClose={() => setCopilotOpen(false)}
+              />
+            </div>
+          )}
         </div>
       </div>
 

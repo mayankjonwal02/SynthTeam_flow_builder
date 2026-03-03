@@ -63,6 +63,9 @@ import app.components.supa_update         # noqa: F401
 import app.components.supa_delete         # noqa: F401
 import app.components.supa_raw_query      # noqa: F401
 
+# ── AI / Agent nodes ──────────────────────────────────────────────────
+import app.components.ai                 # noqa: F401
+
 # ── Aliases ──────────────────────────────────────────────────────────
 from app.components.component_registry import COMPONENT_REGISTRY
 from app.components.processor import EchoProcessorComponent

@@ -142,6 +142,12 @@ class GraphCompiler:
         self._topological_sort()
 
         adj, _ = self._build_adjacency()
+
+        reverse_adj: Dict[str, List[str]] = defaultdict(list)
+        for src, targets in adj.items():
+            for tgt in targets:
+                reverse_adj[tgt].append(src)
+
         entry_id = entry_nodes[0]
         visited: set = set()
         queue = deque([entry_id])
@@ -150,9 +156,12 @@ class GraphCompiler:
             if nid in visited:
                 continue
             visited.add(nid)
-            for neighbour in adj[nid]:
+            for neighbour in adj.get(nid, []):
                 if neighbour not in visited:
                     queue.append(neighbour)
+            for parent in reverse_adj.get(nid, []):
+                if parent not in visited:
+                    queue.append(parent)
 
         unreachable = set(self.nodes.keys()) - visited
         if unreachable:

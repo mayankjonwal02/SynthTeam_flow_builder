@@ -58,7 +58,7 @@ export default function AuthNodeNode({ id, data, selected }: any) {
 
   return (
     <NodeWrapper id={id} name={nodeName} onNameChange={handleNameChange} accentColor="red">
-      <div className={`bg-[#1a1a2e] border rounded-xl shadow-2xl shadow-red-500/5 w-80 overflow-hidden ${selected ? "border-red-400 ring-1 ring-red-400/30" : "border-red-500/30"}`}>
+      <div className={`bg-[#1a1a2e] border rounded-xl shadow-2xl shadow-red-500/5 w-80 relative overflow-visible ${selected ? "border-red-400 ring-1 ring-red-400/30" : "border-red-500/30"}`}>
         <div className="flex items-center gap-2 px-4 py-3 bg-red-500/10 border-b border-red-500/20">
           <ShieldCheck className="w-4 h-4 text-red-400" />
           <span className="text-sm font-semibold text-red-300">{nodeName}</span>
@@ -95,8 +95,10 @@ export default function AuthNodeNode({ id, data, selected }: any) {
             </p>
           </div>
         </div>
-        <Handle type="target" position={Position.Left} className="!bg-red-500 !border-red-300 !w-3 !h-3" />
-        <Handle type="source" position={Position.Right} className="!bg-red-500 !border-red-300 !w-3 !h-3" />
+        <Handle type="target" id="input" position={Position.Left} className="!bg-red-500 !border-red-300 !w-3 !h-3" title="Input" />
+        <span className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full pr-2 text-[9px] font-semibold uppercase tracking-wider text-white/50 whitespace-nowrap pointer-events-none">Input</span>
+        <Handle type="source" id="output" position={Position.Right} className="!bg-red-500 !border-red-300 !w-3 !h-3" title="Output" />
+        <span className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-full pl-2 text-[9px] font-semibold uppercase tracking-wider text-white/50 whitespace-nowrap pointer-events-none">Output</span>
       </div>
     </NodeWrapper>
   );
