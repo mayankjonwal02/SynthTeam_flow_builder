@@ -75,6 +75,10 @@ import {
   FileText,
   FileUp,
   Scissors,
+  Sparkle,
+  X,
+  PanelRightOpen,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ExecutionDrawer from "@/components/ExecutionDrawer";
@@ -82,6 +86,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import AICopilotPanel from "@/components/agent/AICopilotPanel";
 
 const edgeTypes = { deletable: DeletableEdge };
 
@@ -318,7 +323,9 @@ function FlowEditor({ fileId }: { fileId: string }) {
   const [deployedMethod, setDeployedMethod] = useState<string | null>(null);
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [copilotOpen, setCopilotOpen] = useState(false);
   const [overlayActive, setOverlayActive] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(["Triggers"]));
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const savedStylesRef = useRef<Map<string, any>>(new Map());
   const { getToken } = useAuth();
@@ -683,42 +690,69 @@ function FlowEditor({ fileId }: { fileId: string }) {
           </div>
         </div>
 
-        <ScrollArea className="flex-1 min-h-0 px-4 pt-3">
-          {PALETTE_SECTIONS.map((section, si) => (
-            <div key={section.title} className={si > 0 ? "mt-1" : ""}>
-              <div className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-semibold mb-2 mt-2">
-                {section.title}
-              </div>
-              <div className="space-y-1.5 mb-2">
-                {section.items.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <button
-                      key={item.type}
-                      onClick={() => addNode(item.type)}
-                      className="w-full group flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.06] hover:border-white/[0.15] hover:bg-white/[0.05] transition-all duration-200"
-                    >
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center border ${item.accent} transition-colors shrink-0`}>
-                        <Icon className="w-3.5 h-3.5" />
-                      </div>
-                      <div className="text-left flex-1 min-w-0">
-                        <div className="text-[11px] font-medium text-white/80 group-hover:text-white transition-colors truncate">
-                          {item.label}
-                        </div>
-                        <div className="text-[9px] text-white/30 truncate">
-                          {item.description}
-                        </div>
-                      </div>
-                      <Grip className="w-3 h-3 text-white/10 group-hover:text-white/30 transition-colors shrink-0" />
-                    </button>
-                  );
-                })}
-              </div>
-              {si < PALETTE_SECTIONS.length - 1 && (
-                <Separator className="bg-white/[0.06] my-1.5" />
-              )}
-            </div>
-          ))}
+        <ScrollArea className="flex-1 min-h-0 px-3 pt-2">
+          <div className="space-y-0.5 pb-2">
+            {PALETTE_SECTIONS.map((section) => {
+              const isExpanded = expandedSections.has(section.title);
+              return (
+                <div key={section.title}>
+                  <button
+                    onClick={() =>
+                      setExpandedSections((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(section.title)) next.delete(section.title);
+                        else next.add(section.title);
+                        return next;
+                      })
+                    }
+                    className="w-full flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-white/[0.04] transition-colors group"
+                  >
+                    <ChevronRight
+                      className={`w-3.5 h-3.5 text-white/30 group-hover:text-white/50 transition-transform duration-200 shrink-0 ${
+                        isExpanded ? "rotate-90" : ""
+                      }`}
+                    />
+                    <span className="text-[11px] uppercase tracking-[0.15em] text-white/40 group-hover:text-white/60 font-semibold transition-colors">
+                      {section.title}
+                    </span>
+                    <span className="ml-auto text-[10px] text-white/20 font-mono tabular-nums">
+                      {section.items.length}
+                    </span>
+                  </button>
+
+                  {isExpanded && (
+                    <div className="space-y-1 pl-2 pr-1 pb-1.5 pt-0.5">
+                      {section.items.map((item) => {
+                        const Icon = item.icon;
+                        return (
+                          <button
+                            key={item.type}
+                            onClick={() => addNode(item.type)}
+                            className="w-full group flex items-center gap-2.5 p-2 rounded-lg bg-white/[0.02] border border-white/[0.04] hover:border-white/[0.15] hover:bg-white/[0.05] transition-all duration-200"
+                          >
+                            <div
+                              className={`w-7 h-7 rounded-md flex items-center justify-center border ${item.accent} transition-colors shrink-0`}
+                            >
+                              <Icon className="w-3.5 h-3.5" />
+                            </div>
+                            <div className="text-left flex-1 min-w-0">
+                              <div className="text-[11px] font-medium text-white/80 group-hover:text-white transition-colors truncate">
+                                {item.label}
+                              </div>
+                              <div className="text-[9px] text-white/30 truncate leading-tight">
+                                {item.description}
+                              </div>
+                            </div>
+                            <Grip className="w-3 h-3 text-white/10 group-hover:text-white/30 transition-colors shrink-0" />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </ScrollArea>
 
         {/* Info panel — fixed at bottom so nodes/edges count is always visible */}
@@ -783,6 +817,20 @@ function FlowEditor({ fileId }: { fileId: string }) {
             )}
             <Tooltip>
               <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setCopilotOpen((p) => !p)}
+                  className={`gap-2 ${copilotOpen ? "text-purple-400 bg-purple-500/10 hover:bg-purple-500/20" : "text-white/60 hover:text-white hover:bg-white/10"}`}
+                >
+                  <Sparkle className="w-4 h-4" />
+                  <span className="text-xs">AI Copilot</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>AI assistant to help build your workflow</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
                 <Button variant="ghost" size="sm" onClick={() => setDrawerOpen(true)} className="text-white/60 hover:text-white hover:bg-white/10 gap-2">
                   <ScrollText className="w-4 h-4" />
                   <span className="text-xs">Logs</span>
@@ -823,36 +871,50 @@ function FlowEditor({ fileId }: { fileId: string }) {
           </div>
         </div>
 
-        <div className="flex-1 relative" ref={reactFlowWrapper}>
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            nodeTypes={nodeTypes}
-            edgeTypes={edgeTypes}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onInit={setRfInstance}
-            deleteKeyCode={null}
-            fitView
-            style={rfStyle}
-            defaultEdgeOptions={{
-              type: "deletable",
-              animated: true,
-              style: { stroke: "#6366f1", strokeWidth: 2 },
-            }}
-            proOptions={{ hideAttribution: true }}
-          >
-            <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="#ffffff08" />
-            <Controls className="!bg-[#1a1a2e] !border-white/10 !rounded-xl !shadow-2xl [&>button]:!bg-[#1a1a2e] [&>button]:!border-white/10 [&>button]:!text-white/50 [&>button:hover]:!bg-white/10 [&>button:hover]:!text-white" />
-            <MiniMap
-              nodeColor={(n) => MINIMAP_COLORS[n.type || ""] || "#6366f1"}
-              maskColor="rgba(0,0,0,0.85)"
-              className="!bg-[#0d0d14] !border-white/[0.06] !rounded-xl"
-              pannable
-              zoomable
-            />
-          </ReactFlow>
+        <div className="flex-1 flex min-h-0">
+          <div className="flex-1 relative" ref={reactFlowWrapper}>
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              nodeTypes={nodeTypes}
+              edgeTypes={edgeTypes}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              onInit={setRfInstance}
+              deleteKeyCode={null}
+              fitView
+              style={rfStyle}
+              defaultEdgeOptions={{
+                type: "deletable",
+                animated: true,
+                style: { stroke: "#6366f1", strokeWidth: 2 },
+              }}
+              proOptions={{ hideAttribution: true }}
+            >
+              <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="#ffffff08" />
+              <Controls className="!bg-[#1a1a2e] !border-white/10 !rounded-xl !shadow-2xl [&>button]:!bg-[#1a1a2e] [&>button]:!border-white/10 [&>button]:!text-white/50 [&>button:hover]:!bg-white/10 [&>button:hover]:!text-white" />
+              <MiniMap
+                nodeColor={(n) => MINIMAP_COLORS[n.type || ""] || "#6366f1"}
+                maskColor="rgba(0,0,0,0.85)"
+                className="!bg-[#0d0d14] !border-white/[0.06] !rounded-xl"
+                pannable
+                zoomable
+              />
+            </ReactFlow>
+          </div>
+
+          {copilotOpen && (
+            <div className="w-[380px] border-l border-white/[0.06] shrink-0">
+              <AICopilotPanel
+                nodes={nodes}
+                edges={edges}
+                setNodes={setNodes}
+                setEdges={setEdges}
+                onClose={() => setCopilotOpen(false)}
+              />
+            </div>
+          )}
         </div>
       </div>
 

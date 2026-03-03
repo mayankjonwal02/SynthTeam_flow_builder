@@ -8,5 +8,5 @@ def create_groq_llm(model: str, api_key: str, **kwargs):
         model=model,
         api_key=api_key,
         temperature=kwargs.get("temperature", 0.7),
-        max_tokens=kwargs.get("max_tokens"),
+        max_tokens=kwargs.get("max_tokens", 8192),
     )

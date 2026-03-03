@@ -73,7 +73,7 @@ async def run_react_agent(
         "output": final_output,
         "tools_called": tools_called,
         "reasoning_trace": reasoning_trace,
-        "iterations": len([m for m in result_messages if getattr(m, "type", "") == "ai"]),
+        "iterations": len([m for m in messages if getattr(m, "type", "") == "ai"]),
         "latency_ms": elapsed,
-        "messages": result_messages,
+        "messages": messages,
     }

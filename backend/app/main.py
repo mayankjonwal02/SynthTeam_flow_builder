@@ -105,5 +105,13 @@ try:
 except ImportError:
     pass
 
+try:
+    from app.multi_agent.api import router as agent_builder_router
+    from app.multi_agent.ws import router as agent_ws_router
+    application.include_router(agent_builder_router)
+    application.include_router(agent_ws_router)
+except ImportError as exc:
+    logger.warning(f"Multi-agent builder not available: {exc}")
+
 # uvicorn entrypoint alias: `uvicorn app.main:app`
 app = application

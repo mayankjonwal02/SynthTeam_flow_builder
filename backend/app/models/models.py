@@ -53,3 +53,14 @@ class WorkflowExecutionLog(Base):
     status = Column(String)
     trace = Column(JSONB)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class AgentSession(Base):
+    __tablename__ = "agent_sessions"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(String, index=True)
+    project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id"), nullable=True)
+    status = Column(String, default="active")
+    conversation = Column(JSONB, default=[])
+    artifacts = Column(JSONB, default={})
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
