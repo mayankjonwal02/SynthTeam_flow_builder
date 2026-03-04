@@ -18,7 +18,7 @@ class ToolKnowledgeBaseComponent(BaseComponent):
             "__handle_type__": "ai_tool",
             "tool_name": "knowledge_base",
             "collection": config.get("collection", "default"),
-            "top_k": int(config.get("top_k", 5)),
+            "top_k": int(config.get("top_k") or 5),
             "data_description": config.get("data_description", ""),
             "embedding_provider": config.get("embedding_provider", "openai"),
             "embedding_api_key": config.get("embedding_api_key", ""),

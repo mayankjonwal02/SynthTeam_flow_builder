@@ -13,5 +13,5 @@ class ToolWebSearchComponent(BaseComponent):
             "__handle_type__": "ai_tool",
             "tool_name": "web_search",
             "api_key": config.get("api_key", ""),
-            "max_results": int(config.get("max_results", 5)),
+            "max_results": int(config.get("max_results") or 5),
         }

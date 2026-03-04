@@ -21,7 +21,11 @@ export function useAgentWebSocket({ sessionId, onEvent }: UseAgentWebSocketOptio
 
   const connect = useCallback(() => {
     if (!sessionId) return;
-    const url = `ws://localhost:8000/ws/agent/${sessionId}`;
+    const apiUrl = typeof process !== "undefined" && process.env.NEXT_PUBLIC_API_URL
+      ? process.env.NEXT_PUBLIC_API_URL
+      : "http://localhost:8000";
+    const wsUrl = apiUrl.replace(/^http/, "ws");
+    const url = `${wsUrl}/ws/agent/${sessionId}`;
     const ws = new WebSocket(url);
 
     ws.onopen = () => {

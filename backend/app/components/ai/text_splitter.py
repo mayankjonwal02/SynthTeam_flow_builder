@@ -49,8 +49,8 @@ class TextSplitterComponent(BaseComponent):
             documents = [documents]
 
         strategy = config.get("strategy", "character")
-        chunk_size = int(config.get("chunk_size", 1000))
-        overlap = int(config.get("overlap", 200))
+        chunk_size = int(config.get("chunk_size") or 1000)
+        overlap = int(config.get("overlap") or 200)
         separator = config.get("separator", "\n\n")
 
         all_chunks = []

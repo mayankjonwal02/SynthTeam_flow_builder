@@ -28,7 +28,7 @@ class LLMCallComponent(BaseComponent, AIHandleMixin):
         provider = model_cfg.get("provider") or config.get("provider", "openai")
         model = model_cfg.get("model") or config.get("model", "gpt-4o-mini")
         api_key = model_cfg.get("api_key") or config.get("api_key", "")
-        temperature = float(model_cfg.get("temperature") or config.get("temperature", 0.7))
+        temperature = float(model_cfg.get("temperature") or config.get("temperature") or 0.7)
 
         tracker = AITracker("", "llm_call")
         tracker.set_model(provider, model)

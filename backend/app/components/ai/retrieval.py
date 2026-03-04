@@ -22,7 +22,7 @@ class RetrievalComponent(BaseComponent, AIHandleMixin):
                 merged.update(output)
 
         query = merged.get("query", merged.get("text", merged.get("input", "")))
-        top_k = int(config.get("top_k", 5))
+        top_k = int(config.get("top_k") or 5)
 
         embed_cfg = self.get_embedding_config(config) or {}
         embed_provider = embed_cfg.get("provider") or config.get("embedding_provider", "openai")

@@ -29,7 +29,7 @@ class AgentRunComponent(BaseComponent, AIHandleMixin):
         provider = model_cfg.get("provider") or config.get("provider", "openai")
         model = model_cfg.get("model") or config.get("model", "gpt-4o-mini")
         api_key = model_cfg.get("api_key") or config.get("api_key", "")
-        temperature = float(model_cfg.get("temperature") or config.get("temperature", 0.7))
+        temperature = float(model_cfg.get("temperature") or config.get("temperature") or 0.7)
 
         llm = get_llm(provider=provider, model=model, api_key=api_key, temperature=temperature)
 
@@ -56,7 +56,7 @@ class AgentRunComponent(BaseComponent, AIHandleMixin):
 
         user_input = resolve_prompt_field(merged, config, "prompt_template", "prompt_template_source") or resolve_prompt_field(merged, config, "prompt", "prompt_source") or str(merged.get("input", merged.get("data", "")))
         system_prompt = resolve_prompt_field(merged, config, "system_prompt", "system_prompt_source")
-        max_iter = int(config.get("max_iterations", 10))
+        max_iter = int(config.get("max_iterations") or 10)
 
         previous_messages: list = []
         memory = None
@@ -65,7 +65,7 @@ class AgentRunComponent(BaseComponent, AIHandleMixin):
         if mem_cfg:
             from app.ai.memory.manager import MemoryManager
             from app.ai.agents.react_agent import _message_to_dict
-            backend = mem_cfg.get("backend", "in_memory")
+            backend = mem_cfg.get("backend") or "in_memory"
             session_key = (
                 request_data.get("session_id")
                 or mem_cfg.get("session_id")

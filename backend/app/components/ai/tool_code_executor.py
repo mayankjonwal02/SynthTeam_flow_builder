@@ -12,5 +12,5 @@ class ToolCodeExecutorComponent(BaseComponent):
         return {
             "__handle_type__": "ai_tool",
             "tool_name": "code_executor",
-            "timeout": int(config.get("timeout", 10)),
+            "timeout": int(config.get("timeout") or 10),
         }
