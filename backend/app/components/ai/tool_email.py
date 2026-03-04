@@ -13,7 +13,7 @@ class ToolEmailComponent(BaseComponent):
             "__handle_type__": "ai_tool",
             "tool_name": "email_sender",
             "smtp_host": config.get("smtp_host", ""),
-            "smtp_port": int(config.get("smtp_port", 587)),
+            "smtp_port": int(config.get("smtp_port") or 587),
             "username": config.get("username", ""),
             "password": config.get("password", ""),
             "from_email": config.get("from_email", ""),

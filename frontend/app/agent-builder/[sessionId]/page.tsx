@@ -3,7 +3,7 @@
 import { use, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
-import { ArrowLeft, Save, CheckCircle2, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, CheckCircle2, Loader2, KeyRound, X } from "lucide-react";
 import { Node, Edge } from "reactflow";
 
 import AgentChatPanel, { ChatMessage } from "@/components/agent/AgentChatPanel";
@@ -11,7 +11,7 @@ import AgentCanvas from "@/components/agent/AgentCanvas";
 import AgentStatusBar, { AgentStatus } from "@/components/agent/AgentStatusBar";
 import { useAgentWebSocket, WSEvent } from "@/hooks/useAgentWebSocket";
 
-const API = "http://localhost:8000";
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export default function AgentBuilderSession({
   params,
@@ -35,6 +35,12 @@ export default function AgentBuilderSession({
   });
   const [saving, setSaving] = useState(false);
   const [inputDisabled, setInputDisabled] = useState(true);
+  const [secretsModal, setSecretsModal] = useState<{
+    open: boolean;
+    fields: { node_id: string; node_label: string; field_key: string; field_label: string }[];
+  }>({ open: false, fields: [] });
+  const [secretValues, setSecretValues] = useState<Record<string, Record<string, string>>>({});
+  const [submittingSecrets, setSubmittingSecrets] = useState(false);
 
   const addMessage = useCallback((msg: ChatMessage) => {
     setMessages((prev) => [...prev, msg]);
@@ -107,6 +113,15 @@ export default function AgentBuilderSession({
         case "needs_input":
           setInputDisabled(false);
           setThinking(null);
+          if (data.reason === "secrets_needed" && data.fields?.length) {
+            const init: Record<string, Record<string, string>> = {};
+            for (const f of data.fields) {
+              if (!init[f.node_id]) init[f.node_id] = {};
+              init[f.node_id][f.field_key] = "";
+            }
+            setSecretValues(init);
+            setSecretsModal({ open: true, fields: data.fields });
+          }
           break;
 
         case "error":
@@ -214,6 +229,28 @@ export default function AgentBuilderSession({
     setStatus("completed");
   }, [sessionId]);
 
+  const handleSubmitSecrets = useCallback(async () => {
+    setSubmittingSecrets(true);
+    try {
+      await axios.post(`${API}/agent/session/${sessionId}/secrets`, {
+        secrets: secretValues,
+      });
+      setSecretsModal({ open: false, fields: [] });
+      setInputDisabled(true);
+      addMessage({
+        id: Date.now().toString(),
+        role: "user",
+        content: "Secrets provided. Resuming workflow review...",
+      });
+      await axios.post(`${API}/agent/session/${sessionId}/message`, {
+        message: "Secrets have been submitted. Please continue with the review.",
+      });
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || "Failed to submit secrets");
+    }
+    setSubmittingSecrets(false);
+  }, [sessionId, secretValues, addMessage]);
+
   const statusLabel =
     status === "approved"
       ? "Approved"
@@ -293,6 +330,82 @@ export default function AgentBuilderSession({
 
       {/* Status bar */}
       <AgentStatusBar statuses={agentStatuses} />
+
+      {/* Secrets Modal */}
+      {secretsModal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-[#12121e] border border-white/10 rounded-2xl shadow-2xl w-full max-w-lg mx-4">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center">
+                  <KeyRound className="w-4 h-4 text-amber-400" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-semibold text-white">Secrets Required</h2>
+                  <p className="text-[11px] text-white/40">
+                    {secretsModal.fields.length} field(s) need your input
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSecretsModal({ open: false, fields: [] })}
+                className="text-white/30 hover:text-white/60 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="px-6 py-4 space-y-3 max-h-[60vh] overflow-y-auto">
+              {secretsModal.fields.map((field, i) => (
+                <div key={`${field.node_id}-${field.field_key}`} className="space-y-1.5">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-[11px] font-semibold text-white/70">{field.field_label}</span>
+                    <span className="text-[10px] text-white/30 font-mono">
+                      {field.node_label}
+                    </span>
+                  </div>
+                  <input
+                    type="password"
+                    value={secretValues[field.node_id]?.[field.field_key] || ""}
+                    onChange={(e) =>
+                      setSecretValues((prev) => ({
+                        ...prev,
+                        [field.node_id]: {
+                          ...prev[field.node_id],
+                          [field.field_key]: e.target.value,
+                        },
+                      }))
+                    }
+                    placeholder={`Enter ${field.field_label.toLowerCase()}...`}
+                    className="w-full bg-white/[0.04] border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/20 focus:outline-none focus:border-amber-500/40 font-mono"
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div className="px-6 py-4 border-t border-white/[0.06] flex justify-end gap-2">
+              <button
+                onClick={() => setSecretsModal({ open: false, fields: [] })}
+                className="px-4 py-2 text-xs text-white/50 hover:text-white/70 transition-colors"
+              >
+                Skip
+              </button>
+              <button
+                onClick={handleSubmitSecrets}
+                disabled={submittingSecrets}
+                className="flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-white rounded-lg transition-colors"
+              >
+                {submittingSecrets ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <KeyRound className="w-3.5 h-3.5" />
+                )}
+                Submit Secrets
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -11,10 +11,10 @@ class LLMModelComponent(BaseComponent):
     async def execute(self, request_data: dict, inputs: Dict[str, Any], config: dict) -> dict:
         return {
             "__handle_type__": "ai_model",
-            "provider": config.get("provider", "openai"),
-            "model": config.get("model", "gpt-4o-mini"),
+            "provider": config.get("provider") or "openai",
+            "model": config.get("model") or "gpt-4o-mini",
             "api_key": config.get("api_key", ""),
-            "temperature": float(config.get("temperature", 0.7)),
-            "max_tokens": config.get("max_tokens"),
-            "base_url": config.get("base_url"),
+            "temperature": float(config.get("temperature") or 0.7),
+            "max_tokens": config.get("max_tokens") or None,
+            "base_url": config.get("base_url") or None,
         }

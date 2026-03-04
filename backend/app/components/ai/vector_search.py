@@ -22,7 +22,7 @@ class VectorSearchComponent(BaseComponent, AIHandleMixin):
 
         query_vector = merged.get("embedding", [])
         query_text = merged.get("text", merged.get("query", ""))
-        top_k = int(config.get("top_k", 5))
+        top_k = int(config.get("top_k") or 5)
 
         vs_cfg = self.get_vectorstore_config(config) or {}
         provider = vs_cfg.get("provider") or config.get("provider", "qdrant")

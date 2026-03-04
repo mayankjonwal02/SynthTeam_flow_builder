@@ -35,6 +35,8 @@ services:
       - ./reports:/app/reports
     ports:
       - "8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy
@@ -55,7 +57,8 @@ services:
     depends_on:
       - backend
     environment:
-      - NEXT_PUBLIC_API_URL=http://backend:8000
+      # NOTE: This value is used in the browser (host machine), so it must be resolvable from the host.
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
       - WATCHPACK_POLLING=true
 
   celery:
@@ -64,6 +67,8 @@ services:
     command: celery -A app.celery_worker worker --loglevel=info
     volumes:
       - ./backend:/app
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy

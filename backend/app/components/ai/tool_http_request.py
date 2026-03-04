@@ -13,5 +13,5 @@ class ToolHttpRequestComponent(BaseComponent):
             "__handle_type__": "ai_tool",
             "tool_name": "http_request",
             "allowed_methods": config.get("allowed_methods", "GET,POST"),
-            "timeout": int(config.get("timeout", 30)),
+            "timeout": int(config.get("timeout") or 30),
         }

@@ -28,7 +28,7 @@ class AutonomousAgentComponent(BaseComponent, AIHandleMixin):
         provider = model_cfg.get("provider") or config.get("provider", "openai")
         model = model_cfg.get("model") or config.get("model", "gpt-4o-mini")
         api_key = model_cfg.get("api_key") or config.get("api_key", "")
-        temperature = float(model_cfg.get("temperature") or config.get("temperature", 0.7))
+        temperature = float(model_cfg.get("temperature") or config.get("temperature") or 0.7)
 
         llm = get_llm(provider=provider, model=model, api_key=api_key, temperature=temperature)
 
@@ -54,7 +54,7 @@ class AutonomousAgentComponent(BaseComponent, AIHandleMixin):
 
         system_prompt = resolve_prompt_field(merged, config, "system_prompt", "system_prompt_source")
         goal = resolve_prompt_field(merged, config, "goal", "goal_source") or str(merged.get("input", merged.get("data", "")))
-        max_steps = int(config.get("max_steps", config.get("max_iterations", 10)))
+        max_steps = int(config.get("max_steps") or config.get("max_iterations") or 10)
         subagent_configs = self.get_subagent_configs(config)
 
         result = await run_autonomous_agent(

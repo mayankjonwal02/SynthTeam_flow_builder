@@ -19,7 +19,7 @@ from app.multi_agent.agents import (
     create_feedback_agent,
 )
 from app.multi_agent.session import SessionManager
-from app.multi_agent.tools import validate_plan_edges, HANDLE_COMPATIBILITY, COMPONENT_CATALOG
+from app.multi_agent.tools import validate_plan_edges, validate_plan_required_connections, scan_missing_secrets, fill_config_defaults, HANDLE_COMPATIBILITY, COMPONENT_CATALOG
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -123,6 +123,151 @@ class MultiAgentOrchestrator:
     def _ws_agent(self, agent_name: str, event_type: str, data: dict):
         self._emit(event_type, {"agent": agent_name, **data})
 
+    def _context_limit(self) -> int:
+        try:
+            from app.core.config import settings
+            return int(getattr(settings, "AGENT_BUILDER_CONTEXT_MESSAGES", 60) or 60)
+        except Exception:
+            return 60
+
+    async def _build_prompt_context(self) -> str:
+        """Compact session context (last N messages) for agent prompts."""
+        try:
+            convo = await self.session_mgr.get_conversation(self.session_id, limit=self._context_limit())
+        except Exception:
+            session = await self.session_mgr.get(self.session_id)
+            convo = (session.get("conversation", []) if session else [])[-self._context_limit():]
+
+        lines: list[str] = []
+        for m in convo:
+            role = m.get("role", "?")
+            agent = m.get("agent", "")
+            tag = f"[{agent}]" if agent else ""
+            content = (m.get("content", "") or "").strip().replace("\n", " ")
+            if len(content) > 400:
+                content = content[:400] + "…"
+            lines.append(f"{role}{tag}: {content}")
+        return "\n".join(lines)
+
+    @staticmethod
+    def _validate_graph_state(graph_state: dict) -> list[str]:
+        """Deterministic validation of a built graph_state (no LLM tools)."""
+        issues: list[str] = []
+        nodes = graph_state.get("nodes", [])
+        edges = graph_state.get("edges", [])
+        node_ids = {n.get("id") for n in nodes if n.get("id")}
+        node_types = {n.get("id"): n.get("type") for n in nodes if n.get("id")}
+
+        has_trigger = any(
+            node_types.get(nid) in ("http_entry", "webhook_trigger", "cron_trigger", "manual_trigger")
+            for nid in node_ids
+        )
+        if not has_trigger:
+            issues.append("No trigger node found.")
+
+        has_response = any(node_types.get(nid) == "response_builder" for nid in node_ids)
+        if not has_response and has_trigger:
+            issues.append("No response_builder node found.")
+
+        connected = set()
+        for e in edges:
+            if e.get("source"):
+                connected.add(e["source"])
+            if e.get("target"):
+                connected.add(e["target"])
+        orphans = node_ids - connected
+        trigger_types = {"http_entry", "webhook_trigger", "cron_trigger", "manual_trigger"}
+        for oid in orphans:
+            if node_types.get(oid) not in trigger_types and node_types.get(oid) != "response_builder":
+                issues.append(f"Node '{oid}' ({node_types.get(oid)}) is not connected.")
+
+        for e in edges:
+            src = e.get("source")
+            tgt = e.get("target")
+            if src not in node_ids:
+                issues.append(f"Edge references missing source node '{src}'.")
+                continue
+            if tgt not in node_ids:
+                issues.append(f"Edge references missing target node '{tgt}'.")
+                continue
+
+            src_type = node_types.get(src)
+            tgt_type = node_types.get(tgt)
+            if src_type not in COMPONENT_CATALOG:
+                issues.append(f"Edge source node '{src}' has unknown type '{src_type}'.")
+                continue
+            if tgt_type not in COMPONENT_CATALOG:
+                issues.append(f"Edge target node '{tgt}' has unknown type '{tgt_type}'.")
+                continue
+
+            src_handle = e.get("sourceHandle", "output")
+            tgt_handle = e.get("targetHandle", "input")
+            src_info = COMPONENT_CATALOG.get(src_type) or {}
+            tgt_info = COMPONENT_CATALOG.get(tgt_type) or {}
+            if src_handle not in src_info.get("source_handles", []):
+                issues.append(
+                    f"Edge {src}->{tgt}: '{src_type}' has no source handle '{src_handle}'."
+                )
+            if tgt_handle not in tgt_info.get("target_handles", []):
+                issues.append(
+                    f"Edge {src}->{tgt}: '{tgt_type}' has no target handle '{tgt_handle}'."
+                )
+
+            compatible = HANDLE_COMPATIBILITY.get(src_handle, [])
+            if tgt_handle not in compatible:
+                issues.append(
+                    f"Edge {src}->{tgt}: handle mismatch '{src_handle}' -> '{tgt_handle}' (compatible: {compatible})"
+                )
+
+        return issues
+
+    @staticmethod
+    def _graph_matches_plan(plan: dict, graph_state: dict) -> tuple[bool, str]:
+        """Best-effort check that built graph matches the plan semantically."""
+        from collections import Counter
+
+        plan_nodes = plan.get("nodes", []) or []
+        plan_edges = plan.get("edges", []) or []
+        built_nodes = graph_state.get("nodes", []) or []
+        built_edges = graph_state.get("edges", []) or []
+
+        if len(built_nodes) != len(plan_nodes):
+            return False, f"node_count_mismatch plan={len(plan_nodes)} built={len(built_nodes)}"
+        if len(built_edges) != len(plan_edges):
+            return False, f"edge_count_mismatch plan={len(plan_edges)} built={len(built_edges)}"
+
+        plan_type_counts = Counter([n.get("type") for n in plan_nodes])
+        built_type_counts = Counter([n.get("type") for n in built_nodes])
+        if plan_type_counts != built_type_counts:
+            return False, f"node_type_mismatch plan={dict(plan_type_counts)} built={dict(built_type_counts)}"
+
+        plan_node_types = {n.get("id"): n.get("type") for n in plan_nodes}
+        built_node_types = {n.get("id"): n.get("type") for n in built_nodes}
+
+        def _edge_sig(edges: list[dict], node_types: dict) -> Counter:
+            sigs = []
+            for e in edges:
+                src = e.get("source")
+                tgt = e.get("target")
+                sigs.append((
+                    node_types.get(src, "?"),
+                    node_types.get(tgt, "?"),
+                    e.get("sourceHandle", "output"),
+                    e.get("targetHandle", "input"),
+                ))
+            return Counter(sigs)
+
+        plan_sigs = _edge_sig(plan_edges, plan_node_types)
+        built_sigs = _edge_sig(built_edges, built_node_types)
+        if plan_sigs != built_sigs:
+            return False, "edge_signature_mismatch"
+
+        issues = MultiAgentOrchestrator._validate_graph_state(graph_state)
+        if issues:
+            return False, f"graph_invalid: {issues[0]}"
+
+        return True, "ok"
+
     def _execute_plan_directly(self, plan: dict):
         """Deterministic fallback: build graph from the Planner's plan without LLM.
 
@@ -145,6 +290,8 @@ class MultiAgentOrchestrator:
             if node_type not in COMPONENT_CATALOG:
                 logger.warning(f"Direct builder: skipping unknown type '{node_type}'")
                 continue
+
+            fill_config_defaults(node_type, cfg)
 
             actual_id = str(_uuid.uuid4())[:8]
             id_map[plan_id] = actual_id
@@ -370,6 +517,7 @@ class MultiAgentOrchestrator:
             self._diag("requirement", "success", f"Parsed spec with {len(spec.get('functional_requirements', []))} requirements")
 
         await self.session_mgr.update_artifact(self.session_id, "spec", spec)
+        await self.session_mgr.update_artifact(self.session_id, "requirement_output_raw", req_output)
         await self.session_mgr.add_message(
             self.session_id, "assistant",
             f"Requirements captured.",
@@ -416,21 +564,43 @@ class MultiAgentOrchestrator:
             spec = _extract_json(req_output)
 
             if spec and not spec.get("clear", True):
-                questions = spec.get("questions", [])
-                msg = "\n".join(f"- {q}" for q in questions) if questions else req_output
-                await self.session_mgr.add_message(
-                    self.session_id, "assistant", msg, agent="requirement"
-                )
-                self._ws("agent_message", {"agent": "requirement", "content": msg})
-                self._ws("needs_input", {"agent": "requirement", "reason": "clarification"})
-                return
+                user_message_count = sum(1 for m in conversation if m.get("role") == "user")
+                if user_message_count >= 2:
+                    # User already replied at least once; avoid repeated questions — treat as clear
+                    spec = {
+                        "clear": True,
+                        "functional_requirements": [original] + [m.get("content", "") for m in conversation if m.get("role") == "user"][1:],
+                        "non_functional_requirements": [],
+                        "constraints": [],
+                        "node_types_needed": [],
+                    }
+                else:
+                    questions = spec.get("questions", [])
+                    msg = "\n".join(f"- {q}" for q in questions) if questions else req_output
+                    await self.session_mgr.add_message(
+                        self.session_id, "assistant", msg, agent="requirement"
+                    )
+                    self._ws("agent_message", {"agent": "requirement", "content": msg})
+                    self._ws("needs_input", {"agent": "requirement", "reason": "clarification"})
+                    return
 
             if not spec:
                 spec = {"clear": True, "functional_requirements": [user_message], "non_functional_requirements": [], "constraints": [], "node_types_needed": []}
 
             await self.session_mgr.update_artifact(self.session_id, "spec", spec)
+            await self.session_mgr.update_artifact(self.session_id, "requirement_output_raw", req_output)
             self._ws("agent_message", {"agent": "requirement", "content": json.dumps(spec)})
             await self._run_plan_build_review(spec)
+
+        elif status == "waiting_for_secrets":
+            self._diag("builder", "secrets_received", "User submitted secrets, resuming review")
+            graph = artifacts.get("graph")
+            if graph:
+                self.graph_state = graph
+            spec = artifacts.get("spec", {})
+            plan = artifacts.get("plan", {})
+            review = artifacts.get("review", {})
+            await self._run_review_and_finish(spec, plan, review)
 
         elif status in ("approved", "completed"):
             self._ws("agent_message", {
@@ -459,6 +629,7 @@ class MultiAgentOrchestrator:
 
         while iteration < MAX_REVIEW_ITERATIONS:
             iteration += 1
+            used_fallback_builder = False
 
             # ── STEP 2: Planner Agent (waits for Requirement to finish) ──
             self._ws("status_change", {"status": "planning", "agent": "planner"})
@@ -466,7 +637,12 @@ class MultiAgentOrchestrator:
             await self.session_mgr.update_status(self.session_id, "planning")
 
             planner = create_planner_agent(self.llm, self.graph_state, self._ws)
-            plan_prompt = f"Specification:\n{json.dumps(spec, indent=2)}"
+            context = await self._build_prompt_context()
+            plan_prompt = (
+                f"Conversation context (most recent first/last {self._context_limit()} messages):\n"
+                f"{context}\n\n"
+                f"Specification:\n{json.dumps(spec, indent=2)}"
+            )
             if feedback:
                 plan_prompt += f"\n\nReviewer feedback from previous iteration:\n{feedback}"
 
@@ -502,6 +678,15 @@ class MultiAgentOrchestrator:
             else:
                 self._diag("planner", "edge_validation_passed", "All plan edges are valid")
 
+            required_issues = validate_plan_required_connections(plan)
+            if required_issues:
+                self._diag("planner", "required_connections_missing", "; ".join(required_issues[:5]))
+                logger.warning(f"Plan missing required config connections: {required_issues}")
+                self._ws("error", {"agent": "planner", "message": "Plan incomplete: " + required_issues[0]})
+                self._ws("agent_done", {"agent": "planner", "success": False})
+                await self.session_mgr.update_status(self.session_id, "failed")
+                return
+
             await self.session_mgr.update_artifact(self.session_id, "plan", plan)
             await self.session_mgr.add_message(
                 self.session_id, "assistant",
@@ -514,39 +699,15 @@ class MultiAgentOrchestrator:
             })
             self._ws("agent_done", {"agent": "planner", "success": True})
 
-            # ── STEP 3: Builder Agent (waits for Planner to finish) ──────
+            # ── STEP 3: Builder Agent — direct from plan (fast, no LLM) ──────
             self._ws("status_change", {"status": "building", "agent": "builder"})
             self._ws("agent_thinking", {"agent": "builder"})
             await self.session_mgr.update_status(self.session_id, "building")
 
             self.graph_state = {"nodes": [], "edges": []}
-
-            # Try LLM-based builder first (uses tool calling)
-            builder_llm_failed = False
-            try:
-                builder = create_builder_agent(self.llm, self.graph_state, self._ws)
-                build_prompt = (
-                    f"Execute this plan by calling create_node and create_edge tools.\n\n"
-                    f"Plan:\n{json.dumps(plan, indent=2)}"
-                )
-                build_output = await _run_agent(builder, [
-                    {"role": "user", "content": build_prompt}
-                ], recursion_limit=150)
-                self._diag("builder", "llm_result", f"LLM produced {len(self.graph_state['nodes'])} nodes, {len(self.graph_state['edges'])} edges. Output: {build_output[:200]}")
-            except Exception as exc:
-                builder_llm_failed = True
-                self._diag("builder", "llm_exception", str(exc))
-                logger.warning(f"Builder LLM agent failed: {exc}")
-
-            # Fallback: if LLM-based builder produced nothing, build directly from plan
-            if len(self.graph_state["nodes"]) == 0:
-                if not builder_llm_failed:
-                    self._diag("builder", "tool_calling_failed", "LLM ran without errors but made 0 tool calls — model likely does not support function calling")
-                self._diag("builder", "using_fallback", "Falling back to direct plan execution (no LLM)")
-                self.graph_state = {"nodes": [], "edges": []}
-                self._execute_plan_directly(plan)
-            else:
-                self._diag("builder", "llm_success", f"LLM tool calling worked: {len(self.graph_state['nodes'])} nodes built")
+            used_fallback_builder = True
+            self._diag("builder", "direct_build", "Building directly from plan (optimized path)")
+            self._execute_plan_directly(plan)
 
             await self.session_mgr.update_artifact(self.session_id, "graph", self.graph_state)
             await self.session_mgr.add_message(
@@ -560,13 +721,36 @@ class MultiAgentOrchestrator:
             })
             self._ws("agent_done", {"agent": "builder", "success": True})
 
+            # ── STEP 3b: Scan for missing secrets ─────────────────────────
+            missing_secrets = scan_missing_secrets(self.graph_state)
+            if missing_secrets:
+                self._diag("builder", "secrets_needed", f"{len(missing_secrets)} secret fields need user input")
+                await self.session_mgr.update_status(self.session_id, "waiting_for_secrets")
+                self._ws("needs_input", {
+                    "agent": "builder",
+                    "reason": "secrets_needed",
+                    "fields": missing_secrets,
+                })
+                await self.session_mgr.add_message(
+                    self.session_id, "assistant",
+                    f"The workflow needs {len(missing_secrets)} secret value(s) (API keys, passwords). Please provide them to continue.",
+                    agent="builder",
+                )
+                return
+
             # ── STEP 4: Reviewer Agent (waits for Builder to finish) ─────
             self._ws("status_change", {"status": "reviewing", "agent": "reviewer"})
             self._ws("agent_thinking", {"agent": "reviewer"})
             await self.session_mgr.update_status(self.session_id, "reviewing")
 
             reviewer = create_reviewer_agent(self.llm, self.graph_state, self._ws)
+            session = await self.session_mgr.get(self.session_id)
+            artifacts = session.get("artifacts", {}) if session else {}
+            req_raw = artifacts.get("requirement_output_raw", "")
+            context = await self._build_prompt_context()
             review_prompt = (
+                f"Conversation context:\n{context}\n\n"
+                f"RequirementOutput (raw):\n{req_raw}\n\n"
                 f"Review this workflow against the specification.\n\n"
                 f"Specification:\n{json.dumps(spec, indent=2)}\n\n"
                 f"Call get_current_graph and validate_graph to inspect the built graph."
@@ -599,7 +783,7 @@ class MultiAgentOrchestrator:
                 self._ws("status_change", {"status": "approved"})
                 await self.session_mgr.update_status(self.session_id, "approved")
 
-                await self._run_feedback_agent(spec, plan, review, iteration, used_fallback_builder=len(self.graph_state["nodes"]) > 0)
+                await self._run_feedback_agent(spec, plan, review, iteration, used_fallback_builder=used_fallback_builder)
                 return
 
             # Reviewer rejected — loop back to Planner with feedback
@@ -623,4 +807,46 @@ class MultiAgentOrchestrator:
         self._ws("status_change", {"status": "approved"})
         await self.session_mgr.update_status(self.session_id, "approved")
 
-        await self._run_feedback_agent(spec, plan, review, iteration, used_fallback_builder=True)
+        await self._run_feedback_agent(spec, plan, review, iteration, used_fallback_builder=used_fallback_builder)
+
+    async def _run_review_and_finish(self, spec: dict, plan: dict, prev_review: dict):
+        """Run Reviewer + Feedback after secrets have been submitted."""
+        self._ws("status_change", {"status": "reviewing", "agent": "reviewer"})
+        self._ws("agent_thinking", {"agent": "reviewer"})
+        await self.session_mgr.update_status(self.session_id, "reviewing")
+
+        reviewer = create_reviewer_agent(self.llm, self.graph_state, self._ws)
+        session = await self.session_mgr.get(self.session_id)
+        artifacts = session.get("artifacts", {}) if session else {}
+        req_raw = artifacts.get("requirement_output_raw", "")
+        context = await self._build_prompt_context()
+        review_prompt = (
+            f"Conversation context:\n{context}\n\n"
+            f"RequirementOutput (raw):\n{req_raw}\n\n"
+            f"Review this workflow against the specification.\n\n"
+            f"Specification:\n{json.dumps(spec, indent=2)}\n\n"
+            f"Call get_current_graph and validate_graph to inspect the built graph."
+        )
+        review_output = await _run_agent(reviewer, [
+            {"role": "user", "content": review_prompt}
+        ])
+        review = _extract_json(review_output)
+        if not review:
+            review = {"approved": True, "issues": [], "suggestions": [], "feedback": "Auto-approved after secrets submitted."}
+
+        await self.session_mgr.update_artifact(self.session_id, "review", review)
+
+        await self.session_mgr.add_message(
+            self.session_id, "assistant",
+            f"Workflow {'approved' if review.get('approved') else 'needs changes'}! {review.get('feedback', '')}",
+            agent="reviewer",
+        )
+        self._ws("agent_message", {
+            "agent": "reviewer",
+            "content": f"{'Approved' if review.get('approved') else 'Issues found'}: {review.get('feedback', '')}",
+        })
+        self._ws("agent_done", {"agent": "reviewer", "success": review.get("approved", True)})
+        self._ws("status_change", {"status": "approved"})
+        await self.session_mgr.update_status(self.session_id, "approved")
+
+        await self._run_feedback_agent(spec, plan, review, 1, used_fallback_builder=False)

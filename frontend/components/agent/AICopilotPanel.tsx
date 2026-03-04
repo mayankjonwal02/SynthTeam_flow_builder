@@ -24,7 +24,7 @@ const AGENT_BADGE: Record<string, { label: string; cls: string; icon: any }> = {
   feedback:    { label: "Feedback",    cls: "text-orange-400 bg-orange-500/15 border-orange-500/25", icon: MessageSquareText },
 };
 
-const API = "http://localhost:8000";
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 interface Props {
   nodes: Node[];
@@ -42,13 +42,48 @@ export default function AICopilotPanel({ nodes, edges, setNodes, setEdges, onClo
   const [busy, setBusy] = useState(false);
   const [showConfig, setShowConfig] = useState(false);
   const [apiKey, setApiKey] = useState("");
-  const [provider, setProvider] = useState("groq");
-  const [model, setModel] = useState("qwen/qwen3-32b");
+  const [provider, setProvider] = useState("ollama");
+  const [model, setModel] = useState("llama3.1:8b");
+  const [ollamaModels, setOllamaModels] = useState<string[]>([]);
+  const [ollamaLoading, setOllamaLoading] = useState(false);
+  const [ollamaError, setOllamaError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, thinking]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (provider !== "ollama") return;
+
+    setOllamaLoading(true);
+    setOllamaError(null);
+
+    axios
+      .get(`${API}/agent/ollama/models`)
+      .then((res) => {
+        if (cancelled) return;
+        const models = Array.isArray(res.data?.models) ? res.data.models : [];
+        setOllamaModels(models);
+        if (models.length) {
+          setModel((prev) => (models.includes(prev) ? prev : models[0]));
+        }
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setOllamaModels([]);
+        setOllamaError(err?.response?.data?.detail || "Failed to load Ollama models");
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setOllamaLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [provider]);
 
   const addMsg = useCallback((msg: ChatMsg) => {
     setMessages((prev) => [...prev, msg]);
@@ -205,18 +240,45 @@ export default function AICopilotPanel({ nodes, edges, setNodes, setEdges, onClo
                 onChange={(e) => setProvider(e.target.value)}
                 className="w-full bg-white/[0.06] border border-white/10 rounded px-2 py-1 text-[11px] text-white focus:outline-none mt-0.5"
               >
-                {["openai", "anthropic", "gemini", "groq", "ollama"].map((p) => (
+                {["ollama", "openai", "anthropic", "gemini", "groq", "mistral"].map((p) => (
                   <option key={p} value={p} className="bg-[#0d0d14]">{p}</option>
                 ))}
               </select>
             </div>
             <div>
               <label className="text-[9px] uppercase tracking-widest text-white/30 font-semibold">Model</label>
-              <input
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                className="w-full bg-white/[0.06] border border-white/10 rounded px-2 py-1 text-[11px] text-white font-mono focus:outline-none mt-0.5"
-              />
+              {provider === "ollama" && ollamaModels.length > 0 ? (
+                <select
+                  value={model}
+                  onChange={(e) => setModel(e.target.value)}
+                  disabled={ollamaLoading}
+                  className="w-full bg-white/[0.06] border border-white/10 rounded px-2 py-1 text-[11px] text-white font-mono focus:outline-none mt-0.5 disabled:opacity-60"
+                >
+                  {ollamaModels.map((m) => (
+                    <option key={m} value={m} className="bg-[#0d0d14]">
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  value={model}
+                  onChange={(e) => setModel(e.target.value)}
+                  placeholder={provider === "ollama" ? "llama3.1:8b" : "gpt-4o-mini"}
+                  className="w-full bg-white/[0.06] border border-white/10 rounded px-2 py-1 text-[11px] text-white font-mono focus:outline-none mt-0.5"
+                />
+              )}
+              {provider === "ollama" && (
+                <div className="mt-1 text-[10px] text-white/35">
+                  {ollamaLoading
+                    ? "Loading Ollama models…"
+                    : ollamaError
+                    ? `Ollama: ${ollamaError}`
+                    : ollamaModels.length === 0
+                    ? "No models returned from Ollama. You can still type a model name."
+                    : null}
+                </div>
+              )}
             </div>
           </div>
           <div>

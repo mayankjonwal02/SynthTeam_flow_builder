@@ -44,13 +44,16 @@ export default function FieldModeInput({
   onValueChange,
   placeholder = {},
 }: FieldModeInputProps) {
+  const safeMode: FieldMode =
+    mode && Object.prototype.hasOwnProperty.call(MODE_STYLES, mode) ? mode : "static";
+
   const cycleMode = () => {
-    const currentIdx = MODE_ORDER.indexOf(mode);
+    const currentIdx = MODE_ORDER.indexOf(safeMode);
     const nextIdx = (currentIdx + 1) % MODE_ORDER.length;
     onModeChange(MODE_ORDER[nextIdx]);
   };
 
-  const styles = MODE_STYLES[mode];
+  const styles = MODE_STYLES[safeMode];
 
   const defaultPlaceholders: Record<FieldMode, string> = {
     static: "fixed value",
@@ -64,7 +67,7 @@ export default function FieldModeInput({
     expression: "Dot-path into nested data",
   };
 
-  const placeholderText = placeholder[mode] || defaultPlaceholders[mode];
+  const placeholderText = placeholder[safeMode] || defaultPlaceholders[safeMode];
 
   return (
     <div className="space-y-1">
@@ -74,8 +77,8 @@ export default function FieldModeInput({
           className={`flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-md border transition-all shrink-0 ${styles.bg} ${styles.text} ${styles.border}`}
           title={`Click to cycle: Static → Input → Expression`}
         >
-          {MODE_ICONS[mode]}
-          {MODE_LABELS[mode]}
+          {MODE_ICONS[safeMode]}
+          {MODE_LABELS[safeMode]}
         </button>
         <input
           value={value}
@@ -84,7 +87,7 @@ export default function FieldModeInput({
           className="flex-1 bg-white/5 border border-white/10 rounded-md px-2 py-1 text-xs text-white placeholder-white/20 focus:outline-none focus:border-white/30 font-mono"
         />
       </div>
-      <div className={`text-[9px] pl-[58px] ${styles.text} opacity-60`}>{hints[mode]}</div>
+      <div className={`text-[9px] pl-[58px] ${styles.text} opacity-60`}>{hints[safeMode]}</div>
     </div>
   );
 }

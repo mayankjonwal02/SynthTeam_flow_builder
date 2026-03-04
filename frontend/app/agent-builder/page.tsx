@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Wand2, Loader2, Sparkles } from "lucide-react";
 import axios from "axios";
+
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 const EXAMPLES = [
   "Build a REST API with authentication that logs every request to PostgreSQL",
@@ -17,8 +19,44 @@ export default function AgentBuilderStart() {
   const [prompt, setPrompt] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [loading, setLoading] = useState(false);
-  const [provider, setProvider] = useState("groq");
-  const [model, setModel] = useState("qwen/qwen3-32b");
+  const [provider, setProvider] = useState("ollama");
+  const [model, setModel] = useState("llama3.1:8b");
+
+  const [ollamaModels, setOllamaModels] = useState<string[]>([]);
+  const [ollamaLoading, setOllamaLoading] = useState(false);
+  const [ollamaError, setOllamaError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (provider !== "ollama") return;
+
+    setOllamaLoading(true);
+    setOllamaError(null);
+
+    axios
+      .get(`${API}/agent/ollama/models`)
+      .then((res) => {
+        if (cancelled) return;
+        const models = Array.isArray(res.data?.models) ? res.data.models : [];
+        setOllamaModels(models);
+        if (models.length) {
+          setModel((prev) => (models.includes(prev) ? prev : models[0]));
+        }
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setOllamaModels([]);
+        setOllamaError(err?.response?.data?.detail || "Failed to load Ollama models");
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setOllamaLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [provider]);
 
   const handleStart = async () => {
     if (!prompt.trim()) return;
@@ -30,7 +68,7 @@ export default function AgentBuilderStart() {
         llm_model: model,
       };
       if (apiKey.trim()) body.api_key = apiKey.trim();
-      const res = await axios.post("http://localhost:8000/agent/session/start", body);
+      const res = await axios.post(`${API}/agent/session/start`, body);
       const sessionId = res.data.session_id;
       router.push(`/agent-builder/${sessionId}`);
     } catch (err: any) {
@@ -88,19 +126,45 @@ export default function AgentBuilderStart() {
               onChange={(e) => setProvider(e.target.value)}
               className="w-full bg-white/[0.04] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none"
             >
-              {["openai", "anthropic", "gemini", "groq", "ollama"].map((p) => (
+              {["ollama", "openai", "anthropic", "gemini", "groq", "mistral"].map((p) => (
                 <option key={p} value={p} className="bg-[#0a0a12]">{p}</option>
               ))}
             </select>
           </div>
           <div>
             <label className="text-[10px] uppercase tracking-widest text-white/30 font-semibold mb-1 block">Model</label>
-            <input
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
-              placeholder="gpt-4o-mini"
-              className="w-full bg-white/[0.04] border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/25 focus:outline-none font-mono"
-            />
+            {provider === "ollama" && ollamaModels.length > 0 ? (
+              <select
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                disabled={ollamaLoading}
+                className="w-full bg-white/[0.04] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none font-mono disabled:opacity-60"
+              >
+                {ollamaModels.map((m) => (
+                  <option key={m} value={m} className="bg-[#0a0a12]">
+                    {m}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                placeholder={provider === "ollama" ? "llama3.1:8b" : "gpt-4o-mini"}
+                className="w-full bg-white/[0.04] border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/25 focus:outline-none font-mono"
+              />
+            )}
+            {provider === "ollama" && (
+              <div className="mt-1 text-[10px] text-white/35">
+                {ollamaLoading
+                  ? "Loading Ollama models…"
+                  : ollamaError
+                  ? `Ollama: ${ollamaError}`
+                  : ollamaModels.length === 0
+                  ? "No models returned from Ollama. You can still type a model name."
+                  : null}
+              </div>
+            )}
           </div>
           <div>
             <label className="text-[10px] uppercase tracking-widest text-white/30 font-semibold mb-1 block">API Key (optional)</label>

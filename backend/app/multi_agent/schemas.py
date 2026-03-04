@@ -61,13 +61,24 @@ class ConversationMessage(BaseModel):
 class SessionStartRequest(BaseModel):
     prompt: str
     project_id: Optional[str] = None
-    llm_provider: str = "groq"
-    llm_model: str = "qwen/qwen3-32b"
+    user_id: str = "anonymous"
+    llm_provider: str = "ollama"
+    llm_model: str = "llama3.1:8b"
     api_key: Optional[str] = None
 
 
 class SessionMessageRequest(BaseModel):
     message: str
+    llm_provider: Optional[str] = None
+    llm_model: Optional[str] = None
+    api_key: Optional[str] = None
+
+
+class SecretsSubmitRequest(BaseModel):
+    secrets: dict[str, dict[str, str]] = Field(
+        ...,
+        description='Map of node_id -> {field_key: secret_value}. Example: {"abc123": {"api_key": "sk-xxx"}}',
+    )
 
 
 class SessionResponse(BaseModel):
