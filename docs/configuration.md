@@ -16,6 +16,10 @@ Loaded by `backend/app/core/config.py` (pydantic-settings) and, under Docker Com
 | `ENCRYPTION_KEY` | yes in practice | placeholder | Fernet key that encrypts saved database credentials. **Set a real key before storing any connection**; changing it later makes existing credentials unreadable. |
 | `GROQ_API_KEY` | no | empty | Default Groq key, used when a node or Agent Builder session doesn't supply one |
 | `OLLAMA_BASE_URL` | no | `http://localhost:11434` | Ollama server for local LLMs, embeddings and vision. In Docker use `http://host.docker.internal:11434`. |
+| `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`, `MISTRAL_API_KEY` | no | empty | Default provider keys, used when a node or Agent Builder session doesn't supply one |
+| `CORS_ORIGINS` | no | `http://localhost:3000` | Comma-separated browser origins allowed to call the API |
+| `SQLITE_BASE_DIR` | no | `data` | Directory SQLite DB nodes may use; relative paths resolve inside it |
+| `DB_ECHO` | no | `false` | Log every SQL statement the app runs (development only) |
 | `AI_MEMORY_DEFAULT_MAX_MESSAGES` | no | `200` | Default history cap for conversation memory |
 | `AGENT_BUILDER_CONTEXT_MESSAGES` | no | `60` | How many past messages the Agent Builder keeps in context |
 
@@ -29,7 +33,7 @@ python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().d
 
 Most AI nodes take their API key in the node config (an **LLM Model** node, for example). You can also set the standard environment variables, which the underlying LangChain/SDK clients pick up when no key is supplied:
 
-`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`, `GROQ_API_KEY`, `MISTRAL_API_KEY`, `TAVILY_API_KEY`, `DEEPGRAM_API_KEY`, `ELEVENLABS_API_KEY`, `PINECONE_API_KEY`.
+`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`, `GROQ_API_KEY`, `MISTRAL_API_KEY`, `TAVILY_API_KEY`, `DEEPGRAM_API_KEY`, `ELEVENLABS_API_KEY`, `PINECONE_API_KEY`. Leave a node's key field empty to use the environment variable.
 
 ## Frontend (`frontend/.env.local`)
 
@@ -69,4 +73,4 @@ The bundled `docker-compose.yml` is meant for **local development**: the databas
 
 ## CORS
 
-`backend/app/main.py` allows only `http://localhost:3000`. Add your frontend's origin to `allow_origins` when hosting it elsewhere.
+Set `CORS_ORIGINS` to the frontend's origin(s), for example `CORS_ORIGINS=https://app.example.com,http://localhost:3000`.

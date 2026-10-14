@@ -28,18 +28,23 @@ There is also an **optimized pipeline** (`optimized_*.py`) with batch node/edge 
 
 ## Choosing a model
 
-Each session takes `llm_provider`, `llm_model` and an optional `api_key`. The default is local Ollama with `llama3.1:8b`, so the builder works without any cloud key once Ollama is running and `OLLAMA_BASE_URL` points at it. Larger hosted models (OpenAI, Anthropic, Groq, Gemini, Mistral) produce more reliable graphs for complex requests. `GROQ_API_KEY` in `backend/.env` serves as a default Groq key.
+Each session takes `llm_provider`, `llm_model` and an optional `api_key`. The default is local Ollama with `llama3.1:8b`, so the builder works without any cloud key once Ollama is running and `OLLAMA_BASE_URL` points at it. Larger hosted models (OpenAI, Anthropic, Groq, Gemini, Mistral) produce more reliable graphs for complex requests. Without an `api_key`, the provider's key from `backend/.env` is used (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`, `MISTRAL_API_KEY`, `GROQ_API_KEY`).
 
 You can switch provider or model mid-session by passing them with a follow-up message.
 
 ## Session lifecycle
 
-1. `POST /agent/session` with the prompt → returns `session_id`.
-2. Connect to `ws://localhost:8000/ws/agent/{session_id}` for live events.
-3. Answer questions or request changes with `POST /agent/session/{id}/message`.
-4. Provide credentials with `POST /agent/session/{id}/secrets`.
-5. `POST /agent/session/{id}/save?project_id=…` to store the graph as a workflow file.
-6. Open the file in the editor and **Deploy**.
+All calls need a Clerk bearer token, and a session is only visible to the user who started it.
+
+1. `POST /agent/session` with the prompt → returns `session_id`. The pipeline starts in the background.
+2. Connect to `ws://localhost:8000/ws/agent/{session_id}?token=<clerk token>` for live events.
+3. Answer questions or request changes with `POST /agent/session/{id}/message`. After the first message, messages are treated as follow-ups. Only one run per session at a time (`409` while busy).
+4. Provide credentials with `POST /agent/session/{id}/secrets`. The values are written into the matching node configs and the review resumes.
+5. Accept the result with `POST /agent/session/{id}/approve`, or keep iterating.
+6. `POST /agent/session/{id}/save?project_id=…&name=…` stores the graph as a workflow file in one of your projects. The UI asks which project.
+7. Open the file in the editor and **Deploy**.
+
+In the editor, the **AI Copilot** panel uses the same API and merges the agents' nodes into your existing canvas instead of replacing it.
 
 Full request/response shapes are in the [API reference](api-reference.md#ai-agent-builder--agent).
 

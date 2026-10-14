@@ -151,7 +151,7 @@ Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for the devel
 
 ## Security
 
-Workflows can run user-supplied Python and SQL, and node configs can hold API keys. Do not expose a development instance to the public internet. See the [security notes](docs/architecture.md#security-model) and report vulnerabilities privately to the maintainer rather than in a public issue.
+Management APIs and the Agent Builder require a signed-in user, and every project, workflow, log, connection and agent session is scoped to its owner. Workflow nodes bind SQL values as parameters and run Python in an isolated process. Workflows can still run user-supplied Python and SQL, though, and node configs can hold API keys, so only let trusted users author workflows. See the [security model](docs/architecture.md#security-model), and report vulnerabilities privately to the maintainer rather than in a public issue.
 
 ## License
 
