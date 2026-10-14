@@ -12,8 +12,10 @@ from typing import Any, List, Tuple
 
 _IDENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
-# {{input.field}} template placeholders
-_TEMPLATE_RE = re.compile(r"\{\{\s*input\.(\w+)\s*\}\}")
+# {{input.field}} template placeholders, optionally wrapped in matching quotes
+# ('{{input.name}}' was the natural way to write them when values were pasted
+# into the SQL; the quotes are dropped because the value is now a parameter)
+_TEMPLATE_RE = re.compile(r"(['\"]?)\{\{\s*input\.(\w+)\s*\}\}\1")
 # :field named placeholders (not "::type" casts, not inside words like "a:b")
 _NAMED_RE = re.compile(r"(?<![:\w]):([A-Za-z_]\w*)")
 
@@ -56,7 +58,7 @@ def build_bound_query(template: str, context: dict, dialect: str) -> Tuple[str, 
         params.append(context.get(key))
         return _placeholder(dialect, len(params))
 
-    query = _TEMPLATE_RE.sub(lambda m: _bind(m.group(1)), template or "")
+    query = _TEMPLATE_RE.sub(lambda m: _bind(m.group(2)), template or "")
     query = _NAMED_RE.sub(
         lambda m: _bind(m.group(1)) if m.group(1) in context else m.group(0),
         query,
