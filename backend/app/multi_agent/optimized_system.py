@@ -173,13 +173,14 @@ async def process_optimized_workflow_request(
     session_manager,
     session_id: Optional[str] = None,
     ws_emitter: Optional[Callable] = None,
-    progress_callback: Optional[Callable] = None
+    progress_callback: Optional[Callable] = None,
+    user_id: str = "optimized_user",
 ) -> Dict[str, Any]:
     """Process a workflow building request through the optimized system."""
     
     # Generate session ID if not provided
     if not session_id:
-        session_id = await session_manager.create("optimized_user")
+        session_id = await session_manager.create(user_id)
     
     # Create optimized system
     system = await create_optimized_multi_agent_system(

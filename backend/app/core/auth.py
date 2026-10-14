@@ -32,9 +32,14 @@ def _find_key(jwks: dict, kid: str) -> dict | None:
     return None
 
 
-def verify_token(credentials: HTTPAuthorizationCredentials = Security(security)):
-    token = credentials.credentials
+def decode_clerk_token(token: str) -> dict:
+    """
+    Validate a Clerk session token and return its claims (sub = user id).
 
+    Raises HTTPException(401) if the token is missing, malformed or invalid.
+    """
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing auth token")
     try:
         unverified_header = jwt.get_unverified_header(token)
         kid = unverified_header.get("kid")
@@ -51,7 +56,7 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Security(security))
         if key is None:
             raise HTTPException(status_code=401, detail="Unknown signing key")
 
-        payload = jwt.decode(
+        return jwt.decode(
             token,
             key,
             algorithms=["RS256"],
@@ -61,9 +66,12 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Security(security))
             },
         )
 
-        return payload  # contains sub = user_id
-
     except HTTPException:
         raise
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid auth token")
+
+
+def verify_token(credentials: HTTPAuthorizationCredentials = Security(security)):
+    """FastAPI dependency: require a valid Clerk bearer token; returns its claims."""
+    return decode_clerk_token(credentials.credentials)

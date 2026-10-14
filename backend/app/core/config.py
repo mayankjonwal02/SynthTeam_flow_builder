@@ -7,7 +7,12 @@ class Settings(BaseSettings):
     CLERK_PUBLISHABLE_KEY: str
     CLERK_JWKS_URL: str = "https://powerful-yak-2.clerk.accounts.dev/.well-known/jwks.json"
     ENCRYPTION_KEY: str = "generate-a-fernet-key-here"
+    # Default provider keys used by the Agent Builder when a request has none
     GROQ_API_KEY: str = ""
+    OPENAI_API_KEY: str = ""
+    ANTHROPIC_API_KEY: str = ""
+    GOOGLE_API_KEY: str = ""
+    MISTRAL_API_KEY: str = ""
     OLLAMA_BASE_URL: str = "http://localhost:11434"
     AI_MEMORY_DEFAULT_MAX_MESSAGES: int = 200
     AGENT_BUILDER_CONTEXT_MESSAGES: int = 60
