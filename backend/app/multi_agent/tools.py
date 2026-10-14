@@ -193,7 +193,7 @@ COMPONENT_CATALOG: dict[str, dict] = {
         "description": "Configure embedding provider (config node). Connects via ai_embedding handle",
         "category": "ai_config",
         "config_schema": [
-            _f("provider", "Provider", "select", options=["openai", "cohere", "huggingface"], default="openai", required=True),
+            _f("provider", "Provider", "select", options=["openai", "ollama", "huggingface"], default="openai", required=True),
             _f("model", "Model", description="Embedding model name (leave blank for provider default)"),
             _f("api_key", "API Key", "password", secret=True, required=True, description="Embedding provider API key — ASK THE USER"),
         ],
@@ -391,7 +391,7 @@ COMPONENT_CATALOG: dict[str, dict] = {
             _f("data_description", "Data Description", "textarea", description="Describe what data the knowledge base contains (helps the agent decide when to use it)"),
             _f("collection", "Collection", default="default"),
             _f("top_k", "Top K", "number", default="5"),
-            _f("embedding_provider", "Embedding Provider", "select", options=["openai", "cohere", "huggingface"], default="openai"),
+            _f("embedding_provider", "Embedding Provider", "select", options=["openai", "ollama", "huggingface"], default="openai"),
             _f("vectorstore_provider", "VectorStore Provider", "select", options=["qdrant", "chroma", "pinecone"], default="qdrant"),
         ],
         "source_handles": ["ai_tool"],

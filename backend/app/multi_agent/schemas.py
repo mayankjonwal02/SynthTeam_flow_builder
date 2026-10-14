@@ -61,7 +61,8 @@ class ConversationMessage(BaseModel):
 class SessionStartRequest(BaseModel):
     prompt: str
     project_id: Optional[str] = None
-    user_id: str = "anonymous"
+    # Ignored: the owner is always taken from the caller's auth token
+    user_id: Optional[str] = None
     llm_provider: str = "ollama"
     llm_model: str = "llama3.1:8b"
     api_key: Optional[str] = None
@@ -72,6 +73,8 @@ class SessionMessageRequest(BaseModel):
     llm_provider: Optional[str] = None
     llm_model: Optional[str] = None
     api_key: Optional[str] = None
+    # None = decide automatically (follow-up once the session has a user message)
+    is_followup: Optional[bool] = None
 
 
 class SecretsSubmitRequest(BaseModel):

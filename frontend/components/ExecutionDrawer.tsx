@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { API_URL } from "@/lib/api";
 import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -50,6 +51,7 @@ interface ExecutionLog {
 const STATUS_CONFIG: Record<string, { icon: any; color: string; bg: string; border: string }> = {
   success: { icon: CheckCircle2, color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
   failed:  { icon: XCircle,      color: "text-red-400",     bg: "bg-red-500/10",     border: "border-red-500/20" },
+  rejected: { icon: XCircle,     color: "text-amber-400",   bg: "bg-amber-500/10",   border: "border-amber-500/20" },
   skipped: { icon: SkipForward,  color: "text-white/30",    bg: "bg-white/5",        border: "border-white/10" },
 };
 
@@ -183,7 +185,7 @@ export default function ExecutionDrawer({
     try {
       const token = await getToken();
       const res = await axios.get(
-        `http://localhost:8000/api/files/${fileId}/logs?limit=15`,
+        `${API_URL}/api/files/${fileId}/logs?limit=15`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setLogs(res.data);

@@ -18,16 +18,10 @@ def create_ollama_llm(model: str, api_key: str = "", **kwargs):
     base_url = _ollama_base_url(**kwargs)
     # Timeout so we don't hang when Ollama is unreachable (e.g. wrong host in Docker)
     timeout = kwargs.get("timeout", 120)
-    try:
-        return ChatOllama(
-            model=model,
-            base_url=base_url,
-            temperature=kwargs.get("temperature", 0.7),
-            request_timeout=timeout,
-        )
-    except TypeError:
-        return ChatOllama(
-            model=model,
-            base_url=base_url,
-            temperature=kwargs.get("temperature", 0.7),
-        )
+    return ChatOllama(
+        model=model,
+        base_url=base_url,
+        temperature=kwargs.get("temperature", 0.7),
+        # Passed through to the underlying httpx client
+        client_kwargs={"timeout": timeout},
+    )

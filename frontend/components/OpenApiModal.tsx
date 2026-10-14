@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import axios from "axios";
+import { API_URL } from "@/lib/api";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -37,7 +38,7 @@ export default function OpenApiModal({ projectId }: OpenApiModalProps) {
     try {
       const token = await getToken();
       const res = await axios.get(
-        `http://localhost:8000/api/projects/${projectId}/openapi`,
+        `${API_URL}/api/projects/${projectId}/openapi`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setJson(JSON.stringify(res.data, null, 2));

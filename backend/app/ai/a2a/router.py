@@ -1,12 +1,14 @@
 """A2A FastAPI router — agent communication endpoints."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+
+from app.core.auth import verify_token
 from app.ai.a2a.protocol import (
     A2AMessage, A2AResponse, AgentCapability,
     AGENT_INSTANCES, get_agent_instance, list_agent_instances,
 )
 
-router = APIRouter(prefix="/api/agents", tags=["A2A"])
+router = APIRouter(prefix="/api/agents", tags=["A2A"], dependencies=[Depends(verify_token)])
 
 
 @router.get("/")

@@ -1,5 +1,7 @@
 """Optimized agent prompts with hallucination reduction and performance improvements."""
 
+import json
+
 # Base constraints for all agents
 BASE_CONSTRAINTS = """CRITICAL PERFORMANCE REQUIREMENTS:
 - Complete within 30 seconds maximum

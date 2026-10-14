@@ -117,6 +117,8 @@ Both use user `appuser`, password `apppass`, database `dummytat`. From inside th
 | Backend exits with `Could not connect to the database after 10 attempts` | PostgreSQL isn't running or `DATABASE_URL` is wrong. Inside Compose the host is `postgres`; outside, `localhost`. |
 | Every API call returns `401 Invalid auth token` | `CLERK_JWKS_URL` doesn't match the Clerk app your frontend uses. See [configuration.md](configuration.md#clerk-authentication). |
 | `AI layer not fully available` warning on startup | An AI dependency failed to import. Reinstall `requirements.txt`. Non-AI nodes still work. |
-| A deployed endpoint returns 404 after a restart | Deployed routes live in the backend process's memory. Re-deploy the workflow after restarting the backend. |
+| A deployed endpoint returns 404 after a restart | Routes are restored on startup. Check the backend log for `Undeploying workflow …`: its graph no longer compiles or its path is invalid, so fix it and deploy again. |
+| Deploy fails with 422 "reserved" | Paths under `/api`, `/agent`, `/ws`, `/docs` and `/redoc`, plus `/` itself, belong to SynthTeam. Pick another path. |
+| A SQLite node says the database must be inside `SQLITE_BASE_DIR` | SQLite files are confined to that directory (default `./data`). Use a relative path such as `app.db`. |
 | Ollama models don't appear in the Agent Builder | `OLLAMA_BASE_URL` must be reachable from the backend; inside Docker use `http://host.docker.internal:11434`. |
-| Frontend calls fail with CORS errors | The backend only allows `http://localhost:3000`. Edit `allow_origins` in `backend/app/main.py` if you serve the frontend elsewhere. |
+| Frontend calls fail with CORS errors | Add the frontend's origin to `CORS_ORIGINS` in `backend/.env` (comma-separated). |

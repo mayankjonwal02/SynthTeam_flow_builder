@@ -1,5 +1,6 @@
 """MongoDB connector using motor (async driver)."""
 
+from urllib.parse import quote_plus
 from datetime import datetime, date
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -55,7 +56,7 @@ class MongoConnector(BaseConnector):
             database = explicit_database or "test"
 
             if username and password:
-                uri = f"mongodb://{username}:{password}@{host}:{port}"
+                uri = f"mongodb://{quote_plus(username)}:{quote_plus(password)}@{host}:{port}"
             else:
                 uri = f"mongodb://{host}:{port}"
 

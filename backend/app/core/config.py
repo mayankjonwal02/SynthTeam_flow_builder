@@ -7,10 +7,26 @@ class Settings(BaseSettings):
     CLERK_PUBLISHABLE_KEY: str
     CLERK_JWKS_URL: str = "https://powerful-yak-2.clerk.accounts.dev/.well-known/jwks.json"
     ENCRYPTION_KEY: str = "generate-a-fernet-key-here"
+    # Default provider keys used by the Agent Builder when a request has none
     GROQ_API_KEY: str = ""
+    OPENAI_API_KEY: str = ""
+    ANTHROPIC_API_KEY: str = ""
+    GOOGLE_API_KEY: str = ""
+    MISTRAL_API_KEY: str = ""
     OLLAMA_BASE_URL: str = "http://localhost:11434"
     AI_MEMORY_DEFAULT_MAX_MESSAGES: int = 200
     AGENT_BUILDER_CONTEXT_MESSAGES: int = 60
+
+    # Comma-separated list of origins allowed to call the API from a browser
+    CORS_ORIGINS: str = "http://localhost:3000"
+    # Log every SQL statement the app runs (noisy; development only)
+    DB_ECHO: bool = False
+    # SQLite DB nodes may only open files inside this directory
+    SQLITE_BASE_DIR: str = "data"
+
+    @property
+    def cors_origins(self) -> list[str]:
+        return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
 
     class Config:
         env_file = ".env"

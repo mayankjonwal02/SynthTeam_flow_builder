@@ -88,21 +88,37 @@ The result is an execution plan:
 
 ### 3. Register
 
-`runtime/registry.register_route` adds a FastAPI route for the plan (replacing any route already on that path), tags it with the project for the OpenAPI docs, and schedules an APScheduler job if the graph has a cron trigger. The file is marked `is_deployed` with its path and method.
+`runtime/deployment.deploy_file` stores the project owner on the plan and calls `runtime/registry.register_route`, which:
 
-> Routes are held in the backend process's memory and are not re-registered on startup. After a backend restart, deploy the workflow again.
+- rejects reserved paths (`/`, `/protected`, and anything under `/api`, `/agent`, `/ws`, `/docs`, `/redoc`, `/openapi.json`) with **422**;
+- rejects a method + path already served by another workflow with **409**;
+- replaces this workflow's previous route, if any (even if the path changed);
+- tags the route with the project for the OpenAPI docs and schedules an APScheduler job if the graph has a cron trigger.
+
+The file is marked `is_deployed` with its path and method.
+
+Routes live in the backend process's memory, so on startup `restore_deployed_routes` re-registers every file marked as deployed (and its cron job). A file whose graph no longer compiles, or whose path is now invalid or taken, is marked undeployed and the reason is logged. With several backend worker processes each one restores the routes itself.
 
 ### 4. Execute
 
-On each request the handler enforces the rate limit (keyed by `x-api-key` header or client IP), then `GraphExecutor`:
+On each request the handler enforces the rate limit (keyed by client IP), then `GraphExecutor`:
 
 1. walks nodes in topological order;
 2. collects each node's inputs from its parents' outputs, skipping branches whose condition did not match;
-3. resolves field modes and `{{variable}}` interpolation in the node config;
-4. calls `component.execute(request_data, inputs, config)`;
-5. records each node's input, output, timing and errors into a trace.
+3. **skips** a node when all of its data parents were skipped or failed, so a skipped branch never runs downstream nodes with empty input;
+4. resolves field modes and `{{variable}}` interpolation in the node config;
+5. calls `component.execute(request_data, inputs, config)`;
+6. records each node's input, output, timing and errors into a trace.
 
-The response node's output is returned to the caller and the trace is stored in `workflow_execution_logs`. [data-flow.md](data-flow.md) walks through a concrete example.
+Outcomes:
+
+| What happened | HTTP response | Log status |
+|---------------|---------------|------------|
+| Every node succeeded or was skipped | `200` with the response node's output | `success` |
+| A node raised an HTTP error (e.g. **Auth Gate** → 401) | That status and `{"detail": ...}`; nothing after it runs | `rejected` |
+| A node failed | `500` with `{"error", "execution_id", "failed_nodes"}`; its descendants are skipped | `failed` |
+
+The trace is stored in `workflow_execution_logs` with `Authorization`, `Cookie` and `X-API-Key` header values redacted. [data-flow.md](data-flow.md) walks through a concrete example.
 
 ## Data model
 
@@ -120,10 +136,12 @@ Tables are created with `Base.metadata.create_all` on startup; there are no migr
 
 ## Security model
 
-- **Authentication** — management APIs (projects, files, DB connections, deploy) require a Clerk JWT. Deployed workflow routes are public unless the workflow includes an **Auth Gate** node.
-- **Credentials** — saved database credentials are encrypted with `ENCRYPTION_KEY`. API keys typed into node configs are stored in the graph JSON in plain text, so treat workflow files as secrets.
-- **Code execution** — Python Function and Code Executor nodes run user code in a subprocess with a timeout. This is **not** a security sandbox; only let trusted users author workflows.
-- **SQL** — connectors use parameterised queries for the find/insert/update/delete nodes; raw query nodes run whatever SQL they are given.
-- **Rate limiting** — per-route limits from the entry node config, enforced in Redis. Skipped if Redis is unavailable.
+- **Authentication** — every management API (projects, files, logs, DB connections, deploy), the Agent Builder (`/agent/*`), A2A (`/api/agents/*`) and the Agent Builder WebSocket require a Clerk token. Deployed workflow routes are public unless the workflow includes an **Auth Gate** node.
+- **Ownership** — projects, files, logs, DB connections and Agent Builder sessions are only visible to their owner; anyone else gets `404`. A deployed workflow can only use DB connections owned by the workflow's owner, and can't point a raw connection URI at the platform's own database.
+- **Credentials** — saved database credentials are encrypted with `ENCRYPTION_KEY`. API keys typed into node configs are stored in the graph JSON in plain text, so treat workflow files as secrets. The Agent Builder never returns stored API keys from `GET /agent/session/{id}`.
+- **Code execution** — the **Python Function** node rejects imports and private/dunder attribute access before running, then runs the handler in a separate isolated Python process with no server environment variables, killed at the timeout (default 10s). The agent **Code Executor** tool also runs in an isolated process without secrets, and the **File** tools are confined to their base directory. These are guard rails, not a hardened sandbox: only let trusted users author workflows.
+- **SQL** — table and column names are validated as plain identifiers, values are always bound parameters, and update/delete without filters are refused. Raw query nodes bind `{{input.x}}` and `:x` placeholders as parameters (quotes directly around a placeholder are dropped). Write `LIKE` patterns as `'%' || {{input.q}} || '%'`, not `'%{{input.q}}%'`.
+- **SQLite** — database files must live inside `SQLITE_BASE_DIR`.
+- **Rate limiting** — per-route limits from the entry node config, keyed by client IP and enforced in Redis. Skipped if Redis is unavailable.
 
 Security QA reports from earlier audits are in [`reports/`](../reports).

@@ -11,6 +11,11 @@ class MemoryManager:
 
     @staticmethod
     def create(backend: str = "in_memory", **kwargs) -> "BaseMemory":
+        # Empty values from node configs mean "use the default"
+        kwargs = {k: v for k, v in kwargs.items() if v not in (None, "")}
+        if backend == "redis" and "redis_url" not in kwargs:
+            from app.core.config import settings
+            kwargs["redis_url"] = settings.REDIS_URL
         if backend == "in_memory":
             from app.ai.memory.in_memory import InMemoryBackend
             return InMemoryBackend(**kwargs)

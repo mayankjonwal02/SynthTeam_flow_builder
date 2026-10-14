@@ -6,7 +6,7 @@ def create_gemini_llm(model: str, api_key: str, **kwargs):
     from langchain_google_genai import ChatGoogleGenerativeAI
     return ChatGoogleGenerativeAI(
         model=model,
-        google_api_key=api_key,
+        **({"google_api_key": api_key} if api_key else {}),  # empty -> GOOGLE_API_KEY
         temperature=kwargs.get("temperature", 0.7),
         max_output_tokens=kwargs.get("max_tokens"),
     )

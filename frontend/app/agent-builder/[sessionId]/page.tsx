@@ -2,7 +2,7 @@
 
 import { use, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import axios from "axios";
+import { toast } from "sonner";
 import { ArrowLeft, Save, CheckCircle2, Loader2, KeyRound, X } from "lucide-react";
 import { Node, Edge } from "reactflow";
 
@@ -10,8 +10,12 @@ import AgentChatPanel, { ChatMessage } from "@/components/agent/AgentChatPanel";
 import AgentCanvas from "@/components/agent/AgentCanvas";
 import AgentStatusBar, { AgentStatus } from "@/components/agent/AgentStatusBar";
 import { useAgentWebSocket, WSEvent } from "@/hooks/useAgentWebSocket";
+import { apiErrorMessage, useApi } from "@/lib/api";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+interface ProjectOption {
+  id: string;
+  name: string;
+}
 
 export default function AgentBuilderSession({
   params,
@@ -20,6 +24,7 @@ export default function AgentBuilderSession({
 }) {
   const { sessionId } = use(params);
   const router = useRouter();
+  const api = useApi();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [nodes, setNodes] = useState<Node[]>([]);
@@ -34,6 +39,10 @@ export default function AgentBuilderSession({
     feedback: "idle",
   });
   const [saving, setSaving] = useState(false);
+  const [saveDialog, setSaveDialog] = useState(false);
+  const [projects, setProjects] = useState<ProjectOption[]>([]);
+  const [saveProjectId, setSaveProjectId] = useState("");
+  const [saveName, setSaveName] = useState("Agent-Built Workflow");
   const [inputDisabled, setInputDisabled] = useState(true);
   const [secretsModal, setSecretsModal] = useState<{
     open: boolean;
@@ -148,8 +157,8 @@ export default function AgentBuilderSession({
   });
 
   const syncSession = useCallback(() => {
-    axios
-      .get(`${API}/agent/session/${sessionId}`)
+    api
+      .get(`/agent/session/${sessionId}`)
       .then((res) => {
         const session = res.data;
         setStatus(session.status || "active");
@@ -178,7 +187,7 @@ export default function AgentBuilderSession({
         }
       })
       .catch(() => {});
-  }, [sessionId]);
+  }, [sessionId, api]);
 
   useEffect(() => {
     syncSession();
@@ -201,38 +210,64 @@ export default function AgentBuilderSession({
       setInputDisabled(true);
 
       try {
-        await axios.post(`${API}/agent/session/${sessionId}/message`, {
-          message: text,
-        });
-      } catch {
+        // The backend decides whether this is the first prompt or a follow-up
+        await api.post(`/agent/session/${sessionId}/message`, { message: text });
+      } catch (err) {
+        toast.error(apiErrorMessage(err, "Failed to send message"));
         setInputDisabled(false);
       }
     },
-    [sessionId, addMessage]
+    [sessionId, addMessage, api]
   );
 
+  const openSaveDialog = useCallback(async () => {
+    try {
+      const res = await api.get<ProjectOption[]>("/api/projects");
+      setProjects(res.data);
+      setSaveProjectId((prev) => prev || res.data[0]?.id || "");
+      setSaveDialog(true);
+    } catch (err) {
+      toast.error(apiErrorMessage(err, "Could not load your projects"));
+    }
+  }, [api]);
+
   const handleSave = useCallback(async () => {
+    if (!saveProjectId) {
+      toast.error("Choose a project to save into");
+      return;
+    }
     setSaving(true);
     try {
-      const res = await axios.post(
-        `${API}/agent/session/${sessionId}/save?project_id=`
-      );
-      alert(`Saved! File ID: ${res.data.file_id}`);
-    } catch (err: any) {
-      alert(err?.response?.data?.detail || "Save failed");
+      const res = await api.post(`/agent/session/${sessionId}/save`, null, {
+        params: { project_id: saveProjectId, name: saveName },
+      });
+      setSaveDialog(false);
+      setStatus("completed");
+      const fileId = res.data.file_id;
+      toast.success("Workflow saved", {
+        action: { label: "Open", onClick: () => router.push(`/files/${fileId}`) },
+      });
+    } catch (err) {
+      toast.error(apiErrorMessage(err, "Save failed"));
     }
     setSaving(false);
-  }, [sessionId]);
+  }, [sessionId, saveProjectId, saveName, api, router]);
 
   const handleApprove = useCallback(async () => {
-    await axios.post(`${API}/agent/session/${sessionId}/approve`);
-    setStatus("completed");
-  }, [sessionId]);
+    try {
+      await api.post(`/agent/session/${sessionId}/approve`);
+      setStatus("completed");
+      toast.success("Workflow approved");
+    } catch (err) {
+      toast.error(apiErrorMessage(err, "Approve failed"));
+    }
+  }, [sessionId, api]);
 
   const handleSubmitSecrets = useCallback(async () => {
     setSubmittingSecrets(true);
     try {
-      await axios.post(`${API}/agent/session/${sessionId}/secrets`, {
+      // The backend fills the values into the graph and resumes the review itself
+      await api.post(`/agent/session/${sessionId}/secrets`, {
         secrets: secretValues,
       });
       setSecretsModal({ open: false, fields: [] });
@@ -242,14 +277,11 @@ export default function AgentBuilderSession({
         role: "user",
         content: "Secrets provided. Resuming workflow review...",
       });
-      await axios.post(`${API}/agent/session/${sessionId}/message`, {
-        message: "Secrets have been submitted. Please continue with the review.",
-      });
-    } catch (err: any) {
-      alert(err?.response?.data?.detail || "Failed to submit secrets");
+    } catch (err) {
+      toast.error(apiErrorMessage(err, "Failed to submit secrets"));
     }
     setSubmittingSecrets(false);
-  }, [sessionId, secretValues, addMessage]);
+  }, [sessionId, secretValues, addMessage, api]);
 
   const statusLabel =
     status === "approved"
@@ -300,7 +332,7 @@ export default function AgentBuilderSession({
             </button>
           )}
           <button
-            onClick={handleSave}
+            onClick={openSaveDialog}
             disabled={saving || nodes.length === 0}
             className="flex items-center gap-1.5 text-xs font-medium text-white/70 bg-white/[0.06] hover:bg-white/10 border border-white/10 rounded-lg px-3 py-1.5 transition-colors disabled:opacity-30"
           >
@@ -330,6 +362,71 @@ export default function AgentBuilderSession({
 
       {/* Status bar */}
       <AgentStatusBar statuses={agentStatuses} />
+
+      {/* Save Dialog */}
+      {saveDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-[#12121e] border border-white/10 rounded-2xl shadow-2xl w-full max-w-md mx-4">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
+              <h2 className="text-sm font-semibold text-white">Save workflow</h2>
+              <button
+                onClick={() => setSaveDialog(false)}
+                className="text-white/30 hover:text-white/60 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="px-6 py-4 space-y-4">
+              {projects.length === 0 ? (
+                <p className="text-xs text-white/50">
+                  You don&apos;t have any projects yet. Create one on the dashboard first.
+                </p>
+              ) : (
+                <>
+                  <label className="block space-y-1.5">
+                    <span className="text-[11px] font-semibold text-white/70">Project</span>
+                    <select
+                      value={saveProjectId}
+                      onChange={(e) => setSaveProjectId(e.target.value)}
+                      className="w-full bg-white/[0.04] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500/40"
+                    >
+                      {projects.map((p) => (
+                        <option key={p.id} value={p.id} className="bg-[#12121e]">
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block space-y-1.5">
+                    <span className="text-[11px] font-semibold text-white/70">Workflow name</span>
+                    <input
+                      value={saveName}
+                      onChange={(e) => setSaveName(e.target.value)}
+                      className="w-full bg-white/[0.04] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500/40"
+                    />
+                  </label>
+                </>
+              )}
+            </div>
+            <div className="px-6 py-4 border-t border-white/[0.06] flex justify-end gap-2">
+              <button
+                onClick={() => setSaveDialog(false)}
+                className="px-4 py-2 text-xs text-white/50 hover:text-white/70 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving || !saveProjectId}
+                className="flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white rounded-lg transition-colors"
+              >
+                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Secrets Modal */}
       {secretsModal.open && (

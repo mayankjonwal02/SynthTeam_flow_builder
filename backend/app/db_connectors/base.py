@@ -42,8 +42,12 @@ class BaseConnector(ABC):
         ...
 
     @abstractmethod
-    async def raw_query(self, query: str, params: Optional[dict] = None) -> List[dict]:
-        """Execute a raw SQL/query string with parameter binding."""
+    async def raw_query(self, query: str, params: Optional[Any] = None) -> List[dict]:
+        """
+        Execute a raw query. SQL connectors take a list of positional
+        parameters matching the placeholders already in `query`
+        (see sql_safety.build_bound_query); MongoDB takes a pipeline.
+        """
         ...
 
     @abstractmethod

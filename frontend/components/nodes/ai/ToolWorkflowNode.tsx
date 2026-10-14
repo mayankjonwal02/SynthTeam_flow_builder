@@ -13,7 +13,7 @@ export default createConfigNode({
   badge: "TOOL",
   icon: Workflow,
   fields: [
-    { key: "workflow_url", label: "Workflow URL", placeholder: "http://localhost:8000/api/..." },
+    { key: "workflow_url", label: "Workflow URL", placeholder: "http://localhost:8000/my-endpoint" },
     { key: "method", label: "Method", placeholder: "POST", type: "select", options: ["GET", "POST", "PUT", "DELETE"] },
   ],
 });

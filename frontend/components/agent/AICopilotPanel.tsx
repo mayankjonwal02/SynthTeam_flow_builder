@@ -6,8 +6,8 @@ import {
   Sparkle, Send, X, Loader2, Bot, User, Settings2,
   ClipboardCheck, Pencil, Wand2, Search, MessageSquareText,
 } from "lucide-react";
-import axios from "axios";
 import { useAgentWebSocket, WSEvent } from "@/hooks/useAgentWebSocket";
+import { apiErrorMessage, useApi } from "@/lib/api";
 
 interface ChatMsg {
   id: string;
@@ -24,7 +24,13 @@ const AGENT_BADGE: Record<string, { label: string; cls: string; icon: any }> = {
   feedback:    { label: "Feedback",    cls: "text-orange-400 bg-orange-500/15 border-orange-500/25", icon: MessageSquareText },
 };
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+/** Insert or replace items by id, keeping everything already on the canvas. */
+function upsertById<T extends { id: string }>(existing: T[], incoming: T[]): T[] {
+  const byId = new Map(incoming.map((item) => [item.id, item]));
+  const merged = existing.map((item) => byId.get(item.id) ?? item);
+  const existingIds = new Set(existing.map((item) => item.id));
+  return [...merged, ...incoming.filter((item) => !existingIds.has(item.id))];
+}
 
 interface Props {
   nodes: Node[];
@@ -35,6 +41,7 @@ interface Props {
 }
 
 export default function AICopilotPanel({ nodes, edges, setNodes, setEdges, onClose }: Props) {
+  const api = useApi();
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -60,8 +67,8 @@ export default function AICopilotPanel({ nodes, edges, setNodes, setEdges, onClo
     setOllamaLoading(true);
     setOllamaError(null);
 
-    axios
-      .get(`${API}/agent/ollama/models`)
+    api
+      .get("/agent/ollama/models")
       .then((res) => {
         if (cancelled) return;
         const models = Array.isArray(res.data?.models) ? res.data.models : [];
@@ -83,7 +90,7 @@ export default function AICopilotPanel({ nodes, edges, setNodes, setEdges, onClo
     return () => {
       cancelled = true;
     };
-  }, [provider]);
+  }, [provider, api]);
 
   const addMsg = useCallback((msg: ChatMsg) => {
     setMessages((prev) => [...prev, msg]);
@@ -104,10 +111,10 @@ export default function AICopilotPanel({ nodes, edges, setNodes, setEdges, onClo
           setThinking(null);
           break;
         case "node_added":
-          setNodes((prev) => [...prev, data as Node]);
+          setNodes((prev) => upsertById(prev, [data as Node]));
           break;
         case "edge_added":
-          setEdges((prev) => [...prev, data as Edge]);
+          setEdges((prev) => upsertById(prev, [data as Edge]));
           break;
         case "node_updated":
           setNodes((prev) => prev.map((n) => n.id === data.id ? { ...n, data: { ...n.data, config: data.config } } : n));
@@ -140,12 +147,13 @@ export default function AICopilotPanel({ nodes, edges, setNodes, setEdges, onClo
 
   const pollSession = useCallback(async (sid: string) => {
     try {
-      const res = await axios.get(`${API}/agent/session/${sid}`);
+      const res = await api.get(`/agent/session/${sid}`);
       const session = res.data;
       if (session.artifacts?.graph) {
+        // Merge into the user's canvas instead of replacing it
         const g = session.artifacts.graph;
-        if (g.nodes?.length) setNodes(() => g.nodes);
-        if (g.edges?.length) setEdges(() => g.edges);
+        if (g.nodes?.length) setNodes((prev) => upsertById(prev, g.nodes as Node[]));
+        if (g.edges?.length) setEdges((prev) => upsertById(prev, g.edges as Edge[]));
       }
       if (session.conversation?.length) {
         const msgs: ChatMsg[] = session.conversation
@@ -162,7 +170,7 @@ export default function AICopilotPanel({ nodes, edges, setNodes, setEdges, onClo
         setBusy(false);
       }
     } catch {}
-  }, [setNodes, setEdges, messages.length]);
+  }, [setNodes, setEdges, messages.length, api]);
 
   useEffect(() => {
     if (!sessionId || !connected) return;
@@ -181,23 +189,23 @@ export default function AICopilotPanel({ nodes, edges, setNodes, setEdges, onClo
 
     try {
       if (!sessionId) {
-        const body: any = {
+        const body: Record<string, string> = {
           prompt: text,
           llm_provider: provider,
           llm_model: model,
         };
         if (apiKey.trim()) body.api_key = apiKey.trim();
-        const res = await axios.post(`${API}/agent/session/start`, body);
+        const res = await api.post("/agent/session/start", body);
         setSessionId(res.data.session_id);
       } else {
-        await axios.post(`${API}/agent/session/${sessionId}/message`, { message: text });
+        await api.post(`/agent/session/${sessionId}/message`, { message: text });
       }
-    } catch (err: any) {
+    } catch (err) {
       setBusy(false);
       addMsg({
         id: Date.now().toString(),
         role: "assistant",
-        content: `Failed: ${err?.response?.data?.detail || err.message}`,
+        content: `Failed: ${apiErrorMessage(err, "request failed")}`,
       });
     }
   };
