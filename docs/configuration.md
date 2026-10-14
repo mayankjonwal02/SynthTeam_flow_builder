@@ -51,7 +51,7 @@ Docker Compose sets `NEXT_PUBLIC_API_URL=http://localhost:8000` and `WATCHPACK_P
    CLERK_JWKS_URL=https://<your-instance>.clerk.accounts.dev/.well-known/jwks.json
    ```
 
-   The URL is shown under **API keys → Show JWT public key / JWKS URL** in the Clerk dashboard.
+   It is your instance's Frontend API URL (listed on the Clerk dashboard's API keys page) followed by `/.well-known/jwks.json`.
 
    The backend validates every protected request's `Authorization: Bearer <token>` against these keys (RS256, expiry checked, keys cached for one hour).
 
