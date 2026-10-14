@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     REDIS_URL: str
     CLERK_SECRET_KEY: str
     CLERK_PUBLISHABLE_KEY: str
+    CLERK_JWKS_URL: str = "https://powerful-yak-2.clerk.accounts.dev/.well-known/jwks.json"
     ENCRYPTION_KEY: str = "generate-a-fernet-key-here"
     GROQ_API_KEY: str = ""
     OLLAMA_BASE_URL: str = "http://localhost:11434"
