@@ -12,6 +12,7 @@ Loaded by `backend/app/core/config.py` (pydantic-settings) and, under Docker Com
 | `REDIS_URL` | yes | — | Redis URL used for rate limiting, Celery and Redis-backed memory, e.g. `redis://redis:6379/0` |
 | `CLERK_SECRET_KEY` | yes | — | Clerk secret key |
 | `CLERK_PUBLISHABLE_KEY` | yes | — | Clerk publishable key |
+| `CLERK_JWKS_URL` | yes in practice | the original developer's Clerk instance | JWKS endpoint used to verify Clerk session tokens: `https://<your-instance>.clerk.accounts.dev/.well-known/jwks.json` |
 | `ENCRYPTION_KEY` | yes in practice | placeholder | Fernet key that encrypts saved database credentials. **Set a real key before storing any connection**; changing it later makes existing credentials unreadable. |
 | `GROQ_API_KEY` | no | empty | Default Groq key, used when a node or Agent Builder session doesn't supply one |
 | `OLLAMA_BASE_URL` | no | `http://localhost:11434` | Ollama server for local LLMs, embeddings and vision. In Docker use `http://host.docker.internal:11434`. |
@@ -44,11 +45,13 @@ Docker Compose sets `NEXT_PUBLIC_API_URL=http://localhost:8000` and `WATCHPACK_P
 
 1. Create an application at https://dashboard.clerk.com.
 2. Copy the publishable and secret keys into both env files.
-3. Point the backend at your instance's JWKS endpoint. It is currently a constant in `backend/app/core/auth.py`:
+3. Point the backend at your instance's JWKS endpoint in `backend/.env`:
 
-   ```python
-   CLERK_JWKS_URL = "https://<your-instance>.clerk.accounts.dev/.well-known/jwks.json"
+   ```env
+   CLERK_JWKS_URL=https://<your-instance>.clerk.accounts.dev/.well-known/jwks.json
    ```
+
+   The URL is shown under **API keys → Show JWT public key / JWKS URL** in the Clerk dashboard.
 
    The backend validates every protected request's `Authorization: Bearer <token>` against these keys (RS256, expiry checked, keys cached for one hour).
 

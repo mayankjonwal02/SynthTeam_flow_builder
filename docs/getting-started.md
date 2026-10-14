@@ -115,7 +115,7 @@ Both use user `appuser`, password `apppass`, database `dummytat`. From inside th
 | Symptom | Likely cause |
 |---------|--------------|
 | Backend exits with `Could not connect to the database after 10 attempts` | PostgreSQL isn't running or `DATABASE_URL` is wrong. Inside Compose the host is `postgres`; outside, `localhost`. |
-| Every API call returns `401 Invalid auth token` | The backend's Clerk JWKS URL doesn't match the Clerk app your frontend uses. See [configuration.md](configuration.md#clerk-authentication). |
+| Every API call returns `401 Invalid auth token` | `CLERK_JWKS_URL` doesn't match the Clerk app your frontend uses. See [configuration.md](configuration.md#clerk-authentication). |
 | `AI layer not fully available` warning on startup | An AI dependency failed to import. Reinstall `requirements.txt`. Non-AI nodes still work. |
 | A deployed endpoint returns 404 after a restart | Deployed routes live in the backend process's memory. Re-deploy the workflow after restarting the backend. |
 | Ollama models don't appear in the Agent Builder | `OLLAMA_BASE_URL` must be reachable from the backend; inside Docker use `http://host.docker.internal:11434`. |

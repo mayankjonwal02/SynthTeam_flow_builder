@@ -4,7 +4,9 @@ from jose import jwt
 from fastapi import HTTPException, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-CLERK_JWKS_URL = "https://powerful-yak-2.clerk.accounts.dev/.well-known/jwks.json"
+from app.core.config import settings
+
+CLERK_JWKS_URL = settings.CLERK_JWKS_URL
 security = HTTPBearer()
 
 # Cache JWKS keys with a TTL so rotated keys are picked up automatically

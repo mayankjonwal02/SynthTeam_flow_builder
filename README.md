@@ -81,7 +81,7 @@ Fill in the Clerk keys and generate an encryption key:
 python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 ```
 
-> **Note:** the backend verifies Clerk tokens against the JWKS URL in `backend/app/core/auth.py`. Point `CLERK_JWKS_URL` there at your own Clerk instance. See [docs/configuration.md](docs/configuration.md).
+> **Note:** set `CLERK_JWKS_URL` in `backend/.env` to your own Clerk instance's JWKS endpoint, otherwise the backend rejects your sign-in tokens. See [docs/configuration.md](docs/configuration.md#clerk-authentication).
 
 ### 3. Run
 
