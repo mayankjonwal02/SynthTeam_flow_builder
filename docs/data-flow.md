@@ -8,7 +8,7 @@ A comprehensive explanation of how SynthTeam's visual pipeline works end-to-end:
 
 ### Node Types
 
-Three node types are registered in [`frontend/components/nodes/nodeTypes.ts`](frontend/components/nodes/nodeTypes.ts):
+Three node types are registered in [`frontend/components/nodes/nodeTypes.ts`](../frontend/components/nodes/nodeTypes.ts):
 
 ```mermaid
 graph LR
@@ -23,7 +23,7 @@ Each node type maps a string key to a React component. ReactFlow uses this regis
 
 ### How Nodes Are Added to the Canvas
 
-When the user clicks a component in the sidebar palette ([`page.tsx` line 238-252](frontend/app/files/[fileId]/page.tsx)), `addNode()` is called:
+When the user clicks a component in the sidebar palette ([`page.tsx` line 238-252](../frontend/app/files/[fileId]/page.tsx)), `addNode()` is called:
 
 ```typescript
 const addNode = (type: string) => {
@@ -91,7 +91,7 @@ Each node type has specific handles:
 | ProcessorNode    | Yes (amber)         | Yes (amber)            |
 | ResponseNode     | Yes (emerald)       | None (terminal)        |
 
-When the user connects two handles, ReactFlow fires `onConnect` ([`page.tsx` line 255-269](frontend/app/files/[fileId]/page.tsx)):
+When the user connects two handles, ReactFlow fires `onConnect` ([`page.tsx` line 255-269](../frontend/app/files/[fileId]/page.tsx)):
 
 ```typescript
 const onConnect = (conn: Connection) => {
@@ -177,7 +177,7 @@ When the user clicks **Deploy**, the frontend calls `POST /api/files/deploy/{fil
 
 ### Step 1: GraphCompiler Parses the Graph
 
-[`backend/app/runtime/compiler.py`](backend/app/runtime/compiler.py) receives the saved graph JSON and does 4 things:
+[`backend/app/runtime/compiler.py`](../backend/app/runtime/compiler.py) receives the saved graph JSON and does 4 things:
 
 ```mermaid
 flowchart TD
@@ -240,7 +240,7 @@ Same for the response schema.
 
 ### Step 2: Route Registration
 
-[`backend/app/runtime/registry.py`](backend/app/runtime/registry.py) takes the compiled plan and **dynamically adds a FastAPI route** to the running application:
+[`backend/app/runtime/registry.py`](../backend/app/runtime/registry.py) takes the compiled plan and **dynamically adds a FastAPI route** to the running application:
 
 ```mermaid
 flowchart LR
@@ -271,7 +271,7 @@ When an external client calls `POST /api/greet`, the GraphExecutor runs.
 
 ### The Executor's Algorithm
 
-[`backend/app/runtime/executor.py`](backend/app/runtime/executor.py):
+[`backend/app/runtime/executor.py`](../backend/app/runtime/executor.py):
 
 ```python
 async def execute(self, request_data: dict) -> Any:
@@ -339,7 +339,7 @@ flowchart TD
 
 ### Step-by-Step Breakdown
 
-**Node 1 -- HttpEntryComponent** ([`http_entry.py`](backend/app/components/http_entry.py)):
+**Node 1 -- HttpEntryComponent** ([`http_entry.py`](../backend/app/components/http_entry.py)):
 
 - `inputs = {}` (no parents, edge_map has no entry for "1")
 - `request_data = {"name": "Alice", "age": 30}`
@@ -348,7 +348,7 @@ flowchart TD
 - Output: `{"name": "Alice", "age": 30}`
 - **Stored in `context["1"]`**
 
-**Node 2 -- EchoProcessorComponent** ([`processor.py`](backend/app/components/processor.py)):
+**Node 2 -- EchoProcessorComponent** ([`processor.py`](../backend/app/components/processor.py)):
 
 - `edge_map["2"] = ["1"]` -- so the executor gathers `inputs = {"1": context["1"]}`
 - `inputs = {"1": {"name": "Alice", "age": 30}}`
@@ -356,7 +356,7 @@ flowchart TD
 - Output: `{"name": "Alice", "age": 30}`
 - **Stored in `context["2"]`**
 
-**Node 3 -- ResponseBuilderComponent** ([`response_builder.py`](backend/app/components/response_builder.py)):
+**Node 3 -- ResponseBuilderComponent** ([`response_builder.py`](../backend/app/components/response_builder.py)):
 
 - `edge_map["3"] = ["2"]` -- so `inputs = {"2": context["2"]}`
 - `inputs = {"2": {"name": "Alice", "age": 30}}`
@@ -428,10 +428,10 @@ The edges define a **Directed Acyclic Graph (DAG)**. The topological sort ensure
 
 | Stage | What Happens | Key File |
 |-------|-------------|----------|
-| Node creation | User clicks palette item, ReactFlow adds node with `data.component` + `data.config` | [`files/[fileId]/page.tsx`](frontend/app/files/[fileId]/page.tsx) |
-| Edge creation | User drags handle-to-handle, creates `{source, target}` edge | [`files/[fileId]/page.tsx`](frontend/app/files/[fileId]/page.tsx) |
-| Config editing | User edits node UI, `syncConfig()` updates `data.config` immutably via `setNodes()` | [`HttpEntryNode.tsx`](frontend/components/nodes/HttpEntryNode.tsx), [`ProcessorNode.tsx`](frontend/components/nodes/ProcessorNode.tsx), [`ResponseNode.tsx`](frontend/components/nodes/ResponseNode.tsx) |
-| Save | `PUT /api/files/{id}` with `{graph: {nodes, edges}}` stored as JSONB | [`files.py`](backend/app/api/files.py) |
-| Compile | Topological sort + edge_map + dynamic Pydantic models | [`compiler.py`](backend/app/runtime/compiler.py) |
-| Register route | `app.add_api_route()` with tag `{name}_{id}` | [`registry.py`](backend/app/runtime/registry.py) |
-| Runtime execution | Nodes run in order; each node receives parent outputs via `edge_map` lookup in `context` dict | [`executor.py`](backend/app/runtime/executor.py) |
+| Node creation | User clicks palette item, ReactFlow adds node with `data.component` + `data.config` | [`files/[fileId]/page.tsx`](../frontend/app/files/[fileId]/page.tsx) |
+| Edge creation | User drags handle-to-handle, creates `{source, target}` edge | [`files/[fileId]/page.tsx`](../frontend/app/files/[fileId]/page.tsx) |
+| Config editing | User edits node UI, `syncConfig()` updates `data.config` immutably via `setNodes()` | [`HttpEntryNode.tsx`](../frontend/components/nodes/HttpEntryNode.tsx), [`ProcessorNode.tsx`](../frontend/components/nodes/ProcessorNode.tsx), [`ResponseNode.tsx`](../frontend/components/nodes/ResponseNode.tsx) |
+| Save | `PUT /api/files/{id}` with `{graph: {nodes, edges}}` stored as JSONB | [`files.py`](../backend/app/api/files.py) |
+| Compile | Topological sort + edge_map + dynamic Pydantic models | [`compiler.py`](../backend/app/runtime/compiler.py) |
+| Register route | `app.add_api_route()` with tag `{name}_{id}` | [`registry.py`](../backend/app/runtime/registry.py) |
+| Runtime execution | Nodes run in order; each node receives parent outputs via `edge_map` lookup in `context` dict | [`executor.py`](../backend/app/runtime/executor.py) |
