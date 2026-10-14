@@ -11,7 +11,21 @@ from app.core.config import settings
 
 
 def _get_fernet() -> Fernet:
-    return Fernet(settings.ENCRYPTION_KEY.encode())
+    try:
+        return Fernet(settings.ENCRYPTION_KEY.encode())
+    except (ValueError, TypeError) as exc:
+        raise RuntimeError(
+            "ENCRYPTION_KEY is not a valid Fernet key. Generate one with: "
+            'python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"'
+        ) from exc
+
+
+def encryption_key_is_valid() -> bool:
+    try:
+        _get_fernet()
+        return True
+    except RuntimeError:
+        return False
 
 
 def encrypt_json(data: dict) -> str:

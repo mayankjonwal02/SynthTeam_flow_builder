@@ -41,7 +41,74 @@ def _json_serialize(obj: Any) -> Any:
         return [_json_serialize(item) for item in obj]
     return obj
 
+# key -> {"path", "method", "tag", "route", "workflow_id"}
+# key is the workflow id (or "path:<path>" for routes registered without one)
 _ACTIVE_ROUTES: Dict[str, dict] = {}
+
+# Deployed workflows may not live under these prefixes (platform API, docs, websockets)
+RESERVED_PREFIXES = ("/api", "/agent", "/ws", "/docs", "/redoc", "/openapi.json")
+RESERVED_PATHS = ("/", "/protected")
+
+_SENSITIVE_HEADERS = frozenset({
+    "authorization", "proxy-authorization", "cookie", "set-cookie", "x-api-key",
+})
+
+
+class DeployError(ValueError):
+    """A workflow can't be deployed at the requested path."""
+
+    def __init__(self, message: str, status_code: int = 422):
+        super().__init__(message)
+        self.status_code = status_code
+
+
+def _route_key(workflow_id: Optional[_uuid.UUID], path: str) -> str:
+    return str(workflow_id) if workflow_id is not None else f"path:{path}"
+
+
+def validate_deploy_path(path: str) -> None:
+    """Reject paths that would shadow platform routes."""
+    if not isinstance(path, str) or not path.startswith("/"):
+        raise DeployError("Endpoint path must start with '/'")
+    normalized = path.rstrip("/") or "/"
+    if normalized in RESERVED_PATHS:
+        raise DeployError(f"Path {path!r} is reserved")
+    for prefix in RESERVED_PREFIXES:
+        if normalized == prefix or normalized.startswith(prefix + "/") or normalized.startswith(prefix + "."):
+            raise DeployError(f"Paths under {prefix!r} are reserved for the SynthTeam API")
+
+
+def _check_conflicts(app: FastAPI, key: str, path: str, method: str) -> None:
+    managed = {id(info["route"]) for info in _ACTIVE_ROUTES.values()}
+    for other_key, info in _ACTIVE_ROUTES.items():
+        if other_key != key and info["path"] == path and info["method"] == method:
+            raise DeployError(
+                f"{method} {path} is already used by another deployed workflow",
+                status_code=409,
+            )
+    for route in app.routes:
+        if id(route) in managed:
+            continue
+        if getattr(route, "path", None) == path:
+            raise DeployError(f"Path {path!r} is used by the SynthTeam API")
+
+
+def redact_headers(obj: Any) -> Any:
+    """Recursively mask credential headers inside any __headers__ dicts."""
+    if isinstance(obj, dict):
+        out = {}
+        for k, v in obj.items():
+            if k == "__headers__" and isinstance(v, dict):
+                out[k] = {
+                    hk: ("[redacted]" if str(hk).lower() in _SENSITIVE_HEADERS else hv)
+                    for hk, hv in v.items()
+                }
+            else:
+                out[k] = redact_headers(v)
+        return out
+    if isinstance(obj, list):
+        return [redact_headers(v) for v in obj]
+    return obj
 
 
 def register_route(
@@ -54,13 +121,17 @@ def register_route(
 ):
     """Register a compiled workflow as a live FastAPI route."""
     path   = plan["path"]
-    method = plan["method"]
+    method = str(plan["method"]).upper()
     RequestModel  = plan.get("request_model")
     ResponseModel = plan.get("response_model")
     QueryModel    = plan.get("query_model")
     rate_limit    = plan.get("rate_limit")
 
     _workflow_id = workflow_id
+    key = _route_key(workflow_id, path)
+
+    validate_deploy_path(path)
+    _check_conflicts(app, key, path, method)
 
     # ── build the endpoint handler dynamically ──────────────────────
     if RequestModel and QueryModel:
@@ -127,14 +198,18 @@ def register_route(
     if ResponseModel:
         kwargs["response_model"] = ResponseModel
 
-    # Remove old route at the same path if re-deploying
-    app.routes[:] = [r for r in app.routes if getattr(r, "path", None) != path]
+    # Re-deploying replaces only this workflow's previous route (whatever its path)
+    _remove_route(app, key)
 
     app.add_api_route(path, endpoint_handler, **kwargs)
+    route = app.routes[-1]
 
     app.openapi_schema = None
 
-    _ACTIVE_ROUTES[path] = {"method": method, "tag": tag}
+    _ACTIVE_ROUTES[key] = {
+        "path": path, "method": method, "tag": tag,
+        "route": route, "workflow_id": workflow_id,
+    }
     logger.info(f"Deployed route: {method} {path}  [tag={tag}]")
 
     # ── cron scheduling ─────────────────────────────────────────────
@@ -159,16 +234,24 @@ async def _enforce_rate_limit(request: Request, rate_limit: dict):
     if redis_client is None:
         return
 
+    from fastapi import HTTPException
     from app.utils.rate_limiter import check_rate_limit
 
-    api_key = request.headers.get("x-api-key", request.client.host if request.client else "anon")
-    limit_key = f"ratelimit:{api_key}:{request.url.path}"
-    await check_rate_limit(
-        redis_client,
-        limit_key,
-        rate_limit.get("requests", 100),
-        rate_limit.get("window_seconds", 60),
-    )
+    # Key on the client address; a caller-supplied header would let anyone
+    # dodge the limit by sending a new value each time.
+    client = request.client.host if request.client else "anon"
+    limit_key = f"ratelimit:{client}:{request.url.path}"
+    try:
+        await check_rate_limit(
+            redis_client,
+            limit_key,
+            int(rate_limit.get("requests", 100)),
+            int(rate_limit.get("window_seconds", 60)),
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.warning(f"Rate limiting skipped (Redis unavailable): {exc}")
 
 
 async def _handle_result(
@@ -177,14 +260,21 @@ async def _handle_result(
     debug: bool,
 ) -> Any:
     """Persist execution log and return the appropriate response."""
-    trace  = _json_serialize(execution.get("trace", []))
-    result = _json_serialize(execution.get("result"))
+    trace  = redact_headers(_json_serialize(execution.get("trace", [])))
+    result = redact_headers(_json_serialize(execution.get("result")))
+    halted = execution.get("halted")
     exec_id = _uuid.uuid4()
 
-    has_failure = any(
-        entry.get("status") == "failed" for entry in trace
-    )
-    status = "failed" if has_failure else "success"
+    failed_nodes = [
+        {"node": entry.get("node_name"), "error": entry.get("error")}
+        for entry in trace if entry.get("status") == "failed"
+    ]
+    if halted:
+        status = "rejected"
+    elif failed_nodes:
+        status = "failed"
+    else:
+        status = "success"
 
     if workflow_id is not None:
         try:
@@ -208,25 +298,51 @@ async def _handle_result(
             "trace": trace,
         })
 
+    if halted:
+        # A node (e.g. Auth Gate) rejected the request: stop with its status
+        return JSONResponse(
+            status_code=halted["status_code"],
+            content={"detail": halted["detail"]},
+        )
+    if failed_nodes:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "Workflow execution failed",
+                "execution_id": str(exec_id),
+                "failed_nodes": failed_nodes,
+            },
+        )
+
     return result
 
 
-def unregister_route(app: FastAPI, path: str):
-    """Remove a dynamically deployed route and its cron job if any."""
-    app.routes[:] = [r for r in app.routes if getattr(r, "path", None) != path]
-    _ACTIVE_ROUTES.pop(path, None)
+def _remove_route(app: FastAPI, key: str) -> Optional[dict]:
+    info = _ACTIVE_ROUTES.pop(key, None)
+    if not info:
+        return None
+    app.routes[:] = [r for r in app.routes if r is not info["route"]]
     app.openapi_schema = None
-    logger.info(f"Undeployed route: {path}")
-
     try:
         from app.scheduler import remove_cron_job
-        for key in list(_ACTIVE_ROUTES.keys()):
-            pass
-        remove_cron_job(f"cron_{path}")
+        wid = info.get("workflow_id")
+        remove_cron_job(f"cron_{wid}" if wid else f"cron_{info['path']}")
     except Exception:
         pass
+    return info
+
+
+def unregister_route(app: FastAPI, workflow_id: Optional[_uuid.UUID] = None, path: Optional[str] = None):
+    """Remove a workflow's deployed route and its cron job, if any."""
+    key = _route_key(workflow_id, path or "")
+    info = _remove_route(app, key)
+    if info:
+        logger.info(f"Undeployed route: {info['method']} {info['path']}")
 
 
 def list_routes() -> dict:
     """Return all currently active deployed routes."""
-    return dict(_ACTIVE_ROUTES)
+    return {
+        info["path"]: {"method": info["method"], "tag": info["tag"]}
+        for info in _ACTIVE_ROUTES.values()
+    }

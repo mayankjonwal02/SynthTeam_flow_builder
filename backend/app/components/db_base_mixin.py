@@ -11,6 +11,7 @@ Supports two connection modes:
 """
 
 import hashlib
+from urllib.parse import urlparse
 from typing import Any, Dict, List
 from app.db_connectors.pool_manager import get_or_create_pool, ACTIVE_POOLS
 from app.db_connectors.interpolation import interpolate, resolve_filter_mappings
@@ -34,6 +35,22 @@ def _pool_key_for_uri(uri: str) -> str:
     return f"uri_{hashlib.md5(uri.encode()).hexdigest()}"
 
 
+def _reject_platform_database(uri: str) -> None:
+    """Stop flows from connecting to SynthTeam's own application database."""
+    from app.core.config import settings
+
+    target = urlparse(uri)
+    platform = urlparse(settings.DATABASE_URL.replace("+asyncpg", ""))
+    if (
+        target.hostname
+        and platform.hostname
+        and target.hostname == platform.hostname
+        and (target.port or 5432) == (platform.port or 5432)
+        and target.scheme.startswith(("postgres", "supabase"))
+    ):
+        raise ValueError("Connecting to the SynthTeam application database is not allowed")
+
+
 class DBNodeMixin:
     DB_TYPE: str = ""
 
@@ -47,14 +64,17 @@ class DBNodeMixin:
     async def _get_connector(self, config: dict):
         conn_value = config.get("connection_id", "")
         database = config.get("database", "")
+        # Set by the executor from the deployed workflow's owner
+        owner_id = config.get("__owner_id__")
 
         if _is_uri(conn_value):
+            _reject_platform_database(conn_value)
             pool_key = _pool_key_for_uri(conn_value + database)
             creds = _uri_to_credentials(conn_value, self.DB_TYPE, database)
             return await get_or_create_pool(pool_key, self.DB_TYPE, creds)
         else:
             from app.api.db_connections import get_connection_credentials
-            creds = await get_connection_credentials(conn_value)
+            creds = await get_connection_credentials(conn_value, owner_id=owner_id)
             if database:
                 creds["database"] = database
             return await get_or_create_pool(conn_value, self.DB_TYPE or creds["db_type"], creds)

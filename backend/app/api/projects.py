@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.future import select
 from app.db.session import AsyncSessionLocal
-from app.models.models import Project
+from app.models.models import File, Project
+from app.api.deps import get_owned_project, require_fields
+from app.runtime.deployment import delete_file_and_logs
 from app.core.auth import verify_token
 import uuid
 import copy
@@ -12,11 +14,12 @@ router = APIRouter(prefix="/api/projects", tags=["projects"])
 # ===================== CREATE =====================
 @router.post("")
 async def create_project(data: dict, user=Depends(verify_token)):
+    require_fields(data, "name")
     async with AsyncSessionLocal() as session:
         p = Project(
             id=uuid.uuid4(),
             user_id=user["sub"],
-            name=data["name"]
+            name=str(data["name"]).strip()
         )
         session.add(p)
         await session.commit()
@@ -47,16 +50,10 @@ async def get_projects(user=Depends(verify_token)):
 # ===================== UPDATE =====================
 @router.put("/{project_id}")
 async def update_project(project_id: str, data: dict, user=Depends(verify_token)):
+    require_fields(data, "name")
     async with AsyncSessionLocal() as session:
-        res = await session.execute(
-            select(Project).where(Project.id == project_id)
-        )
-        p = res.scalar_one_or_none()
-
-        if not p:
-            raise HTTPException(status_code=404, detail="Project not found")
-
-        p.name = data["name"]
+        p = await get_owned_project(session, project_id, user)
+        p.name = str(data["name"]).strip()
         await session.commit()
 
         return {"success": True}
@@ -64,15 +61,13 @@ async def update_project(project_id: str, data: dict, user=Depends(verify_token)
 
 # ===================== DELETE =====================
 @router.delete("/{project_id}")
-async def delete_project(project_id: str, user=Depends(verify_token)):
+async def delete_project(project_id: str, request: Request, user=Depends(verify_token)):
     async with AsyncSessionLocal() as session:
-        res = await session.execute(
-            select(Project).where(Project.id == project_id)
-        )
-        p = res.scalar_one_or_none()
+        p = await get_owned_project(session, project_id, user)
 
-        if not p:
-            raise HTTPException(status_code=404, detail="Project not found")
+        res = await session.execute(select(File).where(File.project_id == p.id))
+        for f in res.scalars().all():
+            await delete_file_and_logs(session, request.app, f)
 
         await session.delete(p)
         await session.commit()
@@ -89,12 +84,7 @@ async def get_project_openapi(project_id: str, request: Request, user=Depends(ve
     name tag assigned at deploy time).
     """
     async with AsyncSessionLocal() as session:
-        res = await session.execute(
-            select(Project).where(Project.id == project_id)
-        )
-        project = res.scalar_one_or_none()
-        if not project:
-            raise HTTPException(status_code=404, detail="Project not found")
+        project = await get_owned_project(session, project_id, user)
 
     # Tag format: projectname_projectid (same as deploy-time tag)
     tag = f"{project.name}_{project.id}"

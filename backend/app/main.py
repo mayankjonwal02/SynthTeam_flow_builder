@@ -9,6 +9,7 @@ from app.api.files import router as file_router
 from app.api.db_connections import router as db_connections_router
 from app.models.models import Base
 from app.db.session import engine
+from app.core.config import settings
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -17,9 +18,7 @@ application = FastAPI(title="SynthTeam API")
 
 application.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-    ],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -57,9 +56,15 @@ async def startup():
     except Exception as exc:
         logger.warning(f"AI layer not fully available (install langchain deps): {exc}")
 
+    from app.utils.encryption import encryption_key_is_valid
+    if not encryption_key_is_valid():
+        logger.warning(
+            "ENCRYPTION_KEY is not a valid Fernet key: saving DB connections will fail. "
+            "See docs/configuration.md."
+        )
+
     try:
         import redis.asyncio as aioredis
-        from app.core.config import settings
         application.state.redis = aioredis.from_url(
             settings.REDIS_URL, decode_responses=True
         )
@@ -74,6 +79,13 @@ async def startup():
         logger.info("APScheduler started.")
     except Exception as exc:
         logger.warning(f"APScheduler not available: {exc}")
+
+    # Deployed routes live in memory: re-register them (and their cron jobs)
+    try:
+        from app.runtime.deployment import restore_deployed_routes
+        await restore_deployed_routes(application)
+    except Exception as exc:
+        logger.error(f"Could not restore deployed routes: {exc}")
 
 
 @application.on_event("shutdown")

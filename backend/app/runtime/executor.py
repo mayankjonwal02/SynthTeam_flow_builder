@@ -27,6 +27,8 @@ from datetime import datetime, date, timezone
 from decimal import Decimal
 from typing import Any, Dict, List, Set
 
+from fastapi import HTTPException
+
 from app.components.component_registry import get_component
 
 logger = logging.getLogger("uvicorn.error")
@@ -61,9 +63,19 @@ def _to_json_safe(obj: Any) -> Any:
     return str(obj)
 
 
+class WorkflowHalted(Exception):
+    """A node rejected the request (raised HTTPException); stop the workflow."""
+
+    def __init__(self, status_code: int, detail: Any):
+        super().__init__(str(detail))
+        self.status_code = status_code
+        self.detail = detail
+
+
 class GraphExecutor:
 
     def __init__(self, execution_plan: dict):
+        self.owner_id = execution_plan.get("owner_id")
         self.ordered_nodes: list = execution_plan["ordered_nodes"]
         self.edge_map: Dict[str, List[dict]] = execution_plan.get("edge_map", {})
         self.forward_adj: Dict[str, List[dict]] = execution_plan.get("forward_adj", {})
@@ -107,6 +119,13 @@ class GraphExecutor:
         "ai_model", "ai_tool", "ai_memory", "ai_structure",
         "ai_subagent", "ai_embedding", "ai_vectorstore",
     })
+
+    def _has_data_parents(self, node_id: str) -> bool:
+        """Return True if the node has at least one incoming non-AI edge."""
+        for entry in self.edge_map.get(node_id, []):
+            if (entry.get("targetHandle") or "default") not in self.AI_HANDLE_TYPES:
+                return True
+        return False
 
     def _has_conditional_parents(self, node_id: str) -> bool:
         """Return True if at least one incoming edge has a condition."""
@@ -165,14 +184,14 @@ class GraphExecutor:
             if cond is not None and isinstance(parent_output, dict):
                 case_val = parent_output.get("__case__")
                 if case_val is not None:
-                    if cond != str(case_val):
+                    if str(cond) != str(case_val):
                         continue
                     inputs[pid] = parent_output.get("data", parent_output)
                     continue
 
                 cond_flag = parent_output.get("__condition__")
                 if cond_flag is not None:
-                    expected = cond.lower() == "true"
+                    expected = str(cond).lower() == "true"
                     if cond_flag != expected:
                         continue
                     inputs[pid] = parent_output.get("data", parent_output)
@@ -196,8 +215,14 @@ class GraphExecutor:
         self, component, request_data: dict, inputs: dict, config: dict
     ) -> Any:
         """Run a single component with optional timeout and retry."""
-        timeout_sec = config.get("timeout")
-        max_retries = config.get("retry", 0)
+        try:
+            timeout_sec = float(config.get("timeout") or 0) or None
+        except (TypeError, ValueError):
+            timeout_sec = None
+        try:
+            max_retries = max(0, int(config.get("retry") or 0))
+        except (TypeError, ValueError):
+            max_retries = 0
         last_exc: BaseException | None = None
 
         for attempt in range(max_retries + 1):
@@ -206,6 +231,8 @@ class GraphExecutor:
                 if timeout_sec:
                     return await asyncio.wait_for(coro, timeout=timeout_sec)
                 return await coro
+            except HTTPException:
+                raise  # a deliberate rejection; retrying won't change it
             except asyncio.TimeoutError:
                 last_exc = TimeoutError(
                     f"Node timed out after {timeout_sec}s (attempt {attempt + 1}/{max_retries + 1})"
@@ -240,8 +267,12 @@ class GraphExecutor:
         has_ai = any(v for v in ai_inputs.values())
         if has_ai:
             config = {**config, "__ai_inputs__": ai_inputs}
+        if self.owner_id:
+            config = {**config, "__owner_id__": self.owner_id}
 
-        if not inputs and not has_ai and self._has_conditional_parents(node_id):
+        # Skip when every data parent was skipped, failed, or routed elsewhere
+        # by a condition -- otherwise the node would run with empty input.
+        if not inputs and self._has_data_parents(node_id):
             skipped.add(node_id)
             execution_trace.append({
                 "node_id":     node_id,
@@ -271,11 +302,22 @@ class GraphExecutor:
             )
             result = _to_json_safe(result)
             trace_entry["status"] = "success"
+        except HTTPException as exc:
+            trace_entry["status"] = "rejected"
+            trace_entry["error"] = str(exc.detail)
+            trace_entry["output"] = None
+            trace_entry["duration_ms"] = round((time.perf_counter() - t0) * 1000, 2)
+            execution_trace.append(trace_entry)
+            raise WorkflowHalted(exc.status_code, exc.detail)
         except Exception as exc:
             logger.error(f"Node {node_id} ({comp_name}) failed: {exc}")
-            result = {"error": str(exc)}
             trace_entry["status"] = "failed"
             trace_entry["error"]  = str(exc)
+            trace_entry["output"] = {"error": str(exc)}
+            trace_entry["duration_ms"] = round((time.perf_counter() - t0) * 1000, 2)
+            execution_trace.append(trace_entry)
+            # Not stored in context, so downstream nodes are skipped
+            return None
 
         elapsed_ms = round((time.perf_counter() - t0) * 1000, 2)
         trace_entry["output"]      = result
@@ -358,9 +400,20 @@ class GraphExecutor:
 
         Returns:
             { "result": <last node output>, "trace": [...] }
+            plus "halted": {status_code, detail} if a node rejected the request.
         """
-        context: Dict[str, Any] = {}
         execution_trace: list = []
+        try:
+            return await self._execute(request_data, execution_trace)
+        except WorkflowHalted as halt:
+            return {
+                "result": None,
+                "trace": execution_trace,
+                "halted": {"status_code": halt.status_code, "detail": halt.detail},
+            }
+
+    async def _execute(self, request_data: dict, execution_trace: list) -> dict:
+        context: Dict[str, Any] = {}
         last_output: Any = None
         skipped: Set[str] = set()
         already_done: Set[str] = set()
@@ -398,9 +451,19 @@ class GraphExecutor:
                         *[_run_child(cn) for cn in child_nodes],
                         return_exceptions=True,
                     )
-                    for cid, res in zip(child_ids, results):
+                    for res in results:
+                        if isinstance(res, WorkflowHalted):
+                            raise res
+                    for cn, res in zip(child_nodes, results):
+                        cid = cn["id"]
                         if isinstance(res, Exception):
-                            context[cid] = {"error": str(res)}
+                            execution_trace.append({
+                                "node_id": cid, "node_name": self._label(cid),
+                                "component": cn.get("component"), "status": "failed",
+                                "error": str(res), "output": {"error": str(res)},
+                                "timestamp": datetime.now(timezone.utc).isoformat(),
+                                "duration_ms": 0,
+                            })
                         already_done.add(cid)
                         if res is not None and not isinstance(res, Exception):
                             last_output = res
