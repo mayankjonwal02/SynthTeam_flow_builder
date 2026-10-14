@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState, useCallback, useRef } from "react";
 import axios from "axios";
+import { API_URL } from "@/lib/api";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import ReactFlow, {
@@ -328,8 +329,10 @@ function FlowEditor({ fileId }: { fileId: string }) {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(["Triggers"]));
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const savedStylesRef = useRef<Map<string, any>>(new Map());
-  const { getToken } = useAuth();
+  const { getToken, isLoaded: authLoaded } = useAuth();
   const router = useRouter();
+  // Saving before the graph has loaded would overwrite the stored flow with an empty one
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
 
   const applyTraceOverlay = useCallback((trace: any[]) => {
     savedStylesRef.current = new Map();
@@ -358,14 +361,16 @@ function FlowEditor({ fileId }: { fileId: string }) {
   }, [setNodes]);
 
   useEffect(() => {
+    if (!authLoaded) return;
     const load = async () => {
+      setLoadState("loading");
       try {
         const token = await getToken();
         const [graphRes, metaRes] = await Promise.all([
-          axios.get(`http://localhost:8000/api/files/${fileId}`, {
+          axios.get(`${API_URL}/api/files/${fileId}`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          axios.get(`http://localhost:8000/api/files/${fileId}/meta`, {
+          axios.get(`${API_URL}/api/files/${fileId}/meta`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
         ]);
@@ -375,20 +380,43 @@ function FlowEditor({ fileId }: { fileId: string }) {
         setIsLive(metaRes.data.is_deployed || false);
         setDeployedPath(metaRes.data.deployed_path || null);
         setDeployedMethod(metaRes.data.deployed_method || null);
+        setLoadState("loaded");
       } catch {
-        toast.error("Failed to load flow");
+        setLoadState("error");
+        toast.error("Failed to load flow", {
+          description: "Saving is disabled so the stored flow isn't overwritten. Reload to try again.",
+        });
       }
     };
     load();
-  }, [fileId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fileId, authLoaded]);
+
+  /** Graph as it should be stored: without the temporary trace-overlay styling. */
+  const graphForSave = useCallback(() => {
+    const saved = savedStylesRef.current;
+    const cleanNodes = overlayActive
+      ? nodes.map((n) => ({ ...n, style: saved.get(n.id) ?? {} }))
+      : nodes;
+    return { nodes: cleanNodes, edges };
+  }, [nodes, edges, overlayActive]);
+
+  const ensureLoaded = useCallback(() => {
+    if (loadState === "loaded") return true;
+    toast.error(
+      loadState === "loading" ? "The flow is still loading" : "The flow failed to load, so it can't be saved",
+    );
+    return false;
+  }, [loadState]);
 
   const save = useCallback(async () => {
+    if (!ensureLoaded()) return;
     setIsSaving(true);
     try {
       const token = await getToken();
       await axios.put(
-        `http://localhost:8000/api/files/${fileId}`,
-        { graph: { nodes, edges } },
+        `${API_URL}/api/files/${fileId}`,
+        { graph: graphForSave() },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       toast.success("Flow saved successfully");
@@ -397,19 +425,20 @@ function FlowEditor({ fileId }: { fileId: string }) {
     } finally {
       setIsSaving(false);
     }
-  }, [fileId, nodes, edges, getToken]);
+  }, [fileId, getToken, graphForSave, ensureLoaded]);
 
   const deploy = useCallback(async () => {
+    if (!ensureLoaded()) return;
     setIsDeploying(true);
     try {
       const token = await getToken();
       await axios.put(
-        `http://localhost:8000/api/files/${fileId}`,
-        { graph: { nodes, edges } },
+        `${API_URL}/api/files/${fileId}`,
+        { graph: graphForSave() },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const res = await axios.post(
-        `http://localhost:8000/api/files/deploy/${fileId}`,
+        `${API_URL}/api/files/deploy/${fileId}`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -423,8 +452,8 @@ function FlowEditor({ fileId }: { fileId: string }) {
     } catch (err: any) {
       const status = err?.response?.status;
       const detail = err?.response?.data?.detail || err?.message || "Deploy failed";
-      if (status === 422) {
-        toast.error("Validation Error", {
+      if (status === 422 || status === 409) {
+        toast.error(status === 409 ? "Endpoint already in use" : "Validation Error", {
           description: detail,
           duration: 8000,
         });
@@ -434,14 +463,16 @@ function FlowEditor({ fileId }: { fileId: string }) {
     } finally {
       setIsDeploying(false);
     }
-  }, [fileId, nodes, edges, getToken]);
+  }, [fileId, getToken, graphForSave, ensureLoaded]);
 
   const undeploy = useCallback(async () => {
+    const endpoint = deployedPath ? `${deployedMethod ?? ""} ${deployedPath}`.trim() : "this endpoint";
+    if (!window.confirm(`Stop ${endpoint}? Callers will get 404 until you deploy again.`)) return;
     setIsStopping(true);
     try {
       const token = await getToken();
       await axios.post(
-        `http://localhost:8000/api/files/undeploy/${fileId}`,
+        `${API_URL}/api/files/undeploy/${fileId}`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -455,18 +486,18 @@ function FlowEditor({ fileId }: { fileId: string }) {
     } finally {
       setIsStopping(false);
     }
-  }, [fileId, getToken]);
+  }, [fileId, getToken, deployedPath, deployedMethod]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
         e.preventDefault();
-        save();
+        if (!isSaving) save();
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [save]);
+  }, [save, isSaving]);
 
   const getInitialConfig = (type: string) => {
     switch (type) {

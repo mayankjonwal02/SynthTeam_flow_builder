@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import axios from "axios";
+import { API_URL } from "@/lib/api";
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
@@ -41,7 +42,7 @@ export default function ProjectPage({
     try {
       const token = await getToken();
       const res = await axios.get(
-        `http://localhost:8000/api/files/project/${projectId}`,
+        `${API_URL}/api/files/project/${projectId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setFiles(res.data);
@@ -54,7 +55,7 @@ export default function ProjectPage({
     try {
       const token = await getToken();
       await axios.post(
-        "http://localhost:8000/api/files",
+        `${API_URL}/api/files`,
         { project_id: projectId, name },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -66,19 +67,25 @@ export default function ProjectPage({
   };
 
   const toggleDeploy = async (fileId: string, isCurrentlyLive: boolean) => {
+    if (
+      isCurrentlyLive &&
+      !window.confirm("Stop this endpoint? Callers will get 404 until you deploy again.")
+    ) {
+      return;
+    }
     setToggling(fileId);
     try {
       const token = await getToken();
       if (isCurrentlyLive) {
         await axios.post(
-          `http://localhost:8000/api/files/undeploy/${fileId}`,
+          `${API_URL}/api/files/undeploy/${fileId}`,
           {},
           { headers: { Authorization: `Bearer ${token}` } }
         );
         toast.success("Flow stopped");
       } else {
         const res = await axios.post(
-          `http://localhost:8000/api/files/deploy/${fileId}`,
+          `${API_URL}/api/files/deploy/${fileId}`,
           {},
           { headers: { Authorization: `Bearer ${token}` } }
         );

@@ -3,9 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Wand2, Loader2, Sparkles } from "lucide-react";
-import axios from "axios";
-
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+import { toast } from "sonner";
+import { apiErrorMessage, useApi } from "@/lib/api";
 
 const EXAMPLES = [
   "Build a REST API with authentication that logs every request to PostgreSQL",
@@ -16,6 +15,7 @@ const EXAMPLES = [
 
 export default function AgentBuilderStart() {
   const router = useRouter();
+  const api = useApi();
   const [prompt, setPrompt] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [loading, setLoading] = useState(false);
@@ -33,8 +33,8 @@ export default function AgentBuilderStart() {
     setOllamaLoading(true);
     setOllamaError(null);
 
-    axios
-      .get(`${API}/agent/ollama/models`)
+    api
+      .get("/agent/ollama/models")
       .then((res) => {
         if (cancelled) return;
         const models = Array.isArray(res.data?.models) ? res.data.models : [];
@@ -56,23 +56,23 @@ export default function AgentBuilderStart() {
     return () => {
       cancelled = true;
     };
-  }, [provider]);
+  }, [provider, api]);
 
   const handleStart = async () => {
     if (!prompt.trim()) return;
     setLoading(true);
     try {
-      const body: any = {
+      const body: Record<string, string> = {
         prompt: prompt.trim(),
         llm_provider: provider,
         llm_model: model,
       };
       if (apiKey.trim()) body.api_key = apiKey.trim();
-      const res = await axios.post(`${API}/agent/session/start`, body);
+      const res = await api.post("/agent/session/start", body);
       const sessionId = res.data.session_id;
       router.push(`/agent-builder/${sessionId}`);
-    } catch (err: any) {
-      alert(err?.response?.data?.detail || "Failed to start session");
+    } catch (err) {
+      toast.error(apiErrorMessage(err, "Failed to start session"));
       setLoading(false);
     }
   };

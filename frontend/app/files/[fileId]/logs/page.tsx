@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState, useCallback } from "react";
 import axios from "axios";
+import { API_URL, apiErrorMessage } from "@/lib/api";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -44,12 +45,14 @@ interface ExecutionLog {
 const STATUS_ICON: Record<string, any> = {
   success: CheckCircle2,
   failed:  XCircle,
+  rejected: XCircle,
   skipped: SkipForward,
 };
 
 const STATUS_STYLE: Record<string, { color: string; bg: string; border: string }> = {
   success: { color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
   failed:  { color: "text-red-400",     bg: "bg-red-500/10",     border: "border-red-500/20" },
+  rejected: { color: "text-amber-400",  bg: "bg-amber-500/10",   border: "border-amber-500/20" },
   skipped: { color: "text-white/30",    bg: "bg-white/5",        border: "border-white/10" },
 };
 
@@ -149,6 +152,9 @@ export default function LogsPage({
   const [logs, setLogs] = useState<ExecutionLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  // True when the last fetch returned fewer rows than requested
+  const [reachedEnd, setReachedEnd] = useState(false);
   const { getToken } = useAuth();
   const router = useRouter();
 
@@ -156,11 +162,14 @@ export default function LogsPage({
     try {
       const token = await getToken();
       const res = await axios.get(
-        `http://localhost:8000/api/files/${fileId}/logs?limit=${limit}`,
+        `${API_URL}/api/files/${fileId}/logs?limit=${limit}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setLogs(res.data);
-    } catch {
+      setReachedEnd(res.data.length < limit);
+      setLoadError(null);
+    } catch (err) {
+      setLoadError(apiErrorMessage(err, "Failed to load execution logs"));
       toast.error("Failed to load execution logs");
     }
   }, [fileId, getToken]);
@@ -234,6 +243,20 @@ export default function LogsPage({
             <Loader2 className="w-6 h-6 text-indigo-400 animate-spin" />
             <span className="text-sm text-white/30">Loading execution logs...</span>
           </div>
+        ) : loadError && logs.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
+            <XCircle className="w-12 h-12 text-red-400/40" />
+            <p className="text-white/50 text-sm">Couldn&apos;t load execution logs.</p>
+            <p className="text-white/30 text-xs max-w-sm">{loadError}</p>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { setLoading(true); fetchLogs(50).finally(() => setLoading(false)); }}
+              className="text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 mt-2"
+            >
+              Try again
+            </Button>
+          </div>
         ) : logs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
             <ScrollText className="w-12 h-12 text-white/10" />
@@ -255,6 +278,7 @@ export default function LogsPage({
             {logs.map((log) => (
               <ExecutionLogRow key={log.id} log={log} />
             ))}
+            {!reachedEnd && (
             <div className="flex justify-center pt-4 pb-8">
               <Button
                 variant="ghost"
@@ -267,6 +291,7 @@ export default function LogsPage({
                 Load More
               </Button>
             </div>
+            )}
           </div>
         )}
       </div>

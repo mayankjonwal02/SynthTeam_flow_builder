@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { API_URL } from "@/lib/api";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import CreateProjectModal from "@/components/CreateProjectModal";
@@ -17,7 +18,7 @@ export default function Dashboard() {
   const load = async () => {
     try {
       const token = await getToken();
-      const res = await axios.get("http://localhost:8000/api/projects", {
+      const res = await axios.get(`${API_URL}/api/projects`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setProjects(res.data);
@@ -30,7 +31,7 @@ export default function Dashboard() {
     try {
       const token = await getToken();
       await axios.post(
-        "http://localhost:8000/api/projects",
+        `${API_URL}/api/projects`,
         { name },
         { headers: { Authorization: `Bearer ${token}` } }
       );

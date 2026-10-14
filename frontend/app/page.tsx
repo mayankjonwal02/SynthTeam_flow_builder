@@ -431,7 +431,7 @@ export default function Home() {
                         <p>
                           <span className="text-emerald-400">❯</span>{" "}
                           <span className="text-white/70">
-                            curl -X POST http://localhost:8000/api/greet
+                            curl -X POST http://localhost:8000/greet
                           </span>
                         </p>
                         <p className="pl-4">

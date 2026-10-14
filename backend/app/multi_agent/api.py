@@ -255,13 +255,13 @@ async def get_session(session_id: str, user=Depends(verify_token)):
 
 @router.post("/session/{session_id}/approve")
 async def approve_session(session_id: str, user=Depends(verify_token)):
-    """Accept the built workflow as-is."""
+    """User accepts the built workflow as final (the reviewer's 'approved' -> 'completed')."""
     session = await _get_owned_session(session_id, user)
     if not (session.get("artifacts") or {}).get("graph"):
         raise HTTPException(status_code=400, detail="No graph built yet")
-    await _session_mgr.update_status(session_id, "approved")
-    create_ws_emitter(session_id)("status_change", {"status": "approved"})
-    return {"status": "approved"}
+    await _session_mgr.update_status(session_id, "completed")
+    create_ws_emitter(session_id)("status_change", {"status": "completed"})
+    return {"status": "completed"}
 
 
 @router.post("/session/{session_id}/save")

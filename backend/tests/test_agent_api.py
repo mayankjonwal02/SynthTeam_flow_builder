@@ -98,8 +98,8 @@ def test_other_users_cannot_touch_session(fake_mgr, method, path, body):
 def test_approve_and_secrets_merge_into_graph(fake_mgr):
     as_user(OWNER)
     client = TestClient(app)
-    assert client.post("/agent/session/s1/approve").json() == {"status": "approved"}
-    assert fake_mgr.sessions["s1"]["status"] == "approved"
+    assert client.post("/agent/session/s1/approve").json() == {"status": "completed"}
+    assert fake_mgr.sessions["s1"]["status"] == "completed"
 
     r = client.post("/agent/session/s1/secrets", json={"secrets": {"n1": {"api_key": "sk-new"}}})
     assert r.status_code == 200
