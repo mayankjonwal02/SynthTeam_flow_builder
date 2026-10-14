@@ -71,6 +71,10 @@ class AgentRunComponent(BaseComponent, AIHandleMixin):
                 or mem_cfg.get("session_id")
                 or "default"
             )
+            # Keep each workflow owner's conversations separate from other users'
+            owner = config.get("__owner_id__")
+            if owner:
+                session_key = f"{owner}:{session_key}"
             memory = MemoryManager.create(
                 backend=backend,
                 redis_url=mem_cfg.get("redis_url", ""),
